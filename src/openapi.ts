@@ -1,6 +1,8 @@
-import { compileErrors, dereference, validate } from "@readme/openapi-parser";
+import { compileErrors, dereference, parse, validate } from "@readme/openapi-parser";
+import { stat } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { DocumentedErrorResponse, HttpMethod, OperationCase, ParameterLocation, PlannedTestCase, RequestParameter, ResponseExpectation, SchemaExpectation, SecurityCredential, TestPlan, TestStep } from "./model.js";
+import { assertSafeOperationCount, assertSafeSpecDocument, assertSafeSpecSize } from "./spec-safety.js";
 
 type RecordValue = Record<string, unknown>;
 type ApiDocument = RecordValue & {
@@ -590,9 +592,18 @@ function securityRequirements(
 
 export async function buildTestPlan(specPath: string): Promise<TestPlan> {
   const inputPath = resolve(specPath);
-  const validation = await validate(inputPath);
+  const fileStats = await stat(inputPath);
+  assertSafeSpecSize(fileStats.size);
+  const parsedDocument = await parse(inputPath, { timeoutMs: 10_000 });
+  assertSafeSpecDocument(parsedDocument);
+  const parserOptions = {
+    resolve: { external: false, file: false },
+    timeoutMs: 10_000,
+    validate: { errors: { codeFrames: false } }
+  };
+  const validation = await validate(parsedDocument, parserOptions);
   if (!validation.valid) throw new Error(compileErrors(validation));
-  const document = await dereference(inputPath) as ApiDocument;
+  const document = await dereference(parsedDocument, parserOptions) as ApiDocument;
   const specVersion = stringValue(document.openapi, stringValue(document.swagger, "unknown"));
   if (specVersion === "unknown" || (!document.openapi?.startsWith("3.") && document.swagger !== "2.0")) {
     throw new Error(`Unsupported Swagger/OpenAPI version: ${specVersion}`);
@@ -600,6 +611,11 @@ export async function buildTestPlan(specPath: string): Promise<TestPlan> {
 
   const paths = asRecord(document.paths);
   if (!paths) throw new Error("The API specification does not define paths.");
+  const operationCount = Object.values(paths).reduce<number>((count, pathItemValue) => {
+    const pathItem = asRecord(pathItemValue);
+    return count + (pathItem ? methods.filter(method => asRecord(pathItem[method])).length : 0);
+  }, 0);
+  assertSafeOperationCount(operationCount);
   const operations: OperationCase[] = [];
 
   for (const [path, pathItemValue] of Object.entries(paths)) {

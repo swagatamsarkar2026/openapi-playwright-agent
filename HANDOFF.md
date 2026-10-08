@@ -30,7 +30,7 @@ Project root: `C:\Workspace\openapi-playwright-agent`
 
 `BACKLOG.md` is the source of truth for implementation status, pending verification, the agentic product backlog, and service-line demo acceptance criteria. Update its status when work is verified; installation or code presence alone does not mean a feature has passed validation.
 
-Implementation is split into gated phases 0-6 in `BACKLOG.md`. Phase 0 is complete for the current verification scope; Phase 1 (test-engine hardening and broader deterministic tests) is in progress. VAL-04 and VAL-05 passed; next continue with VAL-06 (machine-readable run diagnostics), then `$ref`/resource/secret safety. Obtain the approved model/provider and hosting constraints (AGT-01) before designing conversational agent integration. Do not add a model-provider SDK until that decision is made.
+Implementation is split into gated phases 0-6 in `BACKLOG.md`. Phases 0 and 1 are complete for their documented verification scopes. Phase 1 added machine-readable Playwright results, safe failure diagnostics, credential redaction, internal-only `$ref` resolution, and bounded spec parsing. Next is Phase 2: obtain the approved model/provider, external inference/data policy, and hosting constraints (AGT-01) before designing conversational agent integration. Do not add a model-provider SDK until that decision is made.
 
 ## Environment and next steps
 
@@ -44,11 +44,11 @@ npm.cmd test
 npm.cmd run build
 ```
 
-All three commands passed; `npm test` now reports 7 passing tests. The suite covers Swagger/OpenAPI versions, sample precedence, named request-body examples, 2xx/4xx response cases, API-key wiring, parameter styles and warnings, nested response types/enums/bounds/lengths, stable IDs, and plan rendering. Generated Petstore tests passed standalone TypeScript checking and Playwright discovery (4 cases). No live API tests were run and no request was sent. Named request-body example support and generated response-schema checking were added during this work.
+All three commands passed; `npm test` reports 9 passing tests. The suite covers Swagger/OpenAPI versions, sample precedence, named request-body examples, 2xx/4xx response cases, API-key wiring, parameter styles and warnings, nested response types/enums/bounds/lengths, stable IDs, plan rendering, external-reference rejection, resource bounds, and credential redaction. Generated Petstore tests passed standalone TypeScript checking and Playwright discovery (4 cases). A temporary local mock API run exercised expected/actual status reporting and verified that the API key was absent from the JSON report and console output. No live API requests were made.
 
-Current roadmap: Phase 0 is complete for current verification scope. Phase 1 remains in progress; VAL-04 and VAL-05 passed, and VAL-06 is next. Do not mark Phase 1 complete until its exit gate in `BACKLOG.md` passes.
+Current roadmap: Phases 0 and 1 are complete for their current documented exit gates. Phase 2 is next, beginning with AGT-01 provider/data/hosting decisions. The current work is on feature branch `feature/phase-1-hardening`; push it and open a pull request into `develop` after committing the completed Phase 1 changes. Do not merge directly to shared branches.
 
-Running API tests requires a reachable, authorized target service and any required credentials. Browser binaries are not required because Playwright is used for API requests, not browser automation.
+Running API tests requires a reachable, authorized target service and any required credentials. Browser binaries are not required because Playwright is used for API requests, not browser automation. Analysis accepts internal `$ref` values only; external local/remote references are rejected and must be inlined or bundled. See README for the input/resource limits and result-report policy.
 
 ## Important files
 
@@ -57,6 +57,9 @@ Running API tests requires a reachable, authorized target service and any requir
 - `src\cli.ts` — CLI commands
 - `src\openapi.ts` — spec validation, normalization, and test-plan derivation
 - `src\generator.ts` — test and plan generation
+- `src\run-reporter.ts` — machine-readable Playwright result output and safe failure diagnostics
+- `src\spec-safety.ts` — specification resource and reference bounds
+- `src\redaction.ts` — credential redaction for result summaries
 - `src\model.ts` — normalized plan and operation types
 - `src\cli.test.ts` — scaffold tests, including Swagger 2.0 and OpenAPI 3.1 coverage
 - `examples\petstore\openapi.yaml` — sample input only
