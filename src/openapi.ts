@@ -1,5 +1,6 @@
 import { compileErrors, dereference, parse, validate } from "@readme/openapi-parser";
-import { stat } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { DocumentedErrorResponse, HttpMethod, OperationCase, ParameterLocation, PlannedTestCase, RequestParameter, ResponseExpectation, SchemaExpectation, SecurityCredential, TestPlan, TestStep } from "./model.js";
 import { assertSafeOperationCount, assertSafeSpecDocument, assertSafeSpecSize } from "./spec-safety.js";
@@ -452,6 +453,7 @@ function buildTestCases(operation: OperationCase): PlannedTestCase[] {
       preconditions: basePreconditions,
       expectedStatus: expectation.status,
       responseExpectation: expectation,
+      evidence: [],
       steps,
       warnings: operation.warnings
     });
@@ -487,6 +489,7 @@ function buildTestCases(operation: OperationCase): PlannedTestCase[] {
           ...(error.schema ? { schema: error.schema } : {})
         }
       } : {}),
+      evidence: [],
       steps: [
         {
           kind: "manual",
@@ -526,6 +529,7 @@ function buildTestCases(operation: OperationCase): PlannedTestCase[] {
       ...(operation.bodySource ? { bodySource: operation.bodySource } : {}),
       security: operation.security,
       preconditions: ["Inspect the response documentation and decide which outcome should be asserted."],
+      evidence: [],
       steps: [{
         kind: "manual",
         action: "Choose and document the expected response status and response assertions before automating this operation.",
@@ -592,8 +596,9 @@ function securityRequirements(
 
 export async function buildTestPlan(specPath: string): Promise<TestPlan> {
   const inputPath = resolve(specPath);
-  const fileStats = await stat(inputPath);
-  assertSafeSpecSize(fileStats.size);
+  const sourceBytes = await readFile(inputPath);
+  assertSafeSpecSize(sourceBytes.byteLength);
+  const specFingerprint = createHash("sha256").update(sourceBytes).digest("hex");
   const parsedDocument = await parse(inputPath, { timeoutMs: 10_000 });
   assertSafeSpecDocument(parsedDocument);
   const parserOptions = {
@@ -681,7 +686,20 @@ export async function buildTestPlan(specPath: string): Promise<TestPlan> {
         testCases: []
       });
       const plannedOperation = operations[operations.length - 1];
-      if (plannedOperation) plannedOperation.testCases = buildTestCases(plannedOperation);
+      if (plannedOperation) {
+        const operationPointer = `/paths/${path.replace(/~/g, "~0").replace(/\//g, "~1")}/${method}`;
+        plannedOperation.testCases = buildTestCases(plannedOperation).map(testCase => ({
+          ...testCase,
+          evidence: [
+            { source: "openapi" as const, specFingerprint, pointer: operationPointer },
+            ...(testCase.expectedStatus === undefined ? [] : [{
+              source: "openapi" as const,
+              specFingerprint,
+              pointer: `${operationPointer}/responses/${testCase.expectedStatus}`
+            }])
+          ]
+        }));
+      }
     }
   }
 
@@ -690,6 +708,7 @@ export async function buildTestPlan(specPath: string): Promise<TestPlan> {
     title: stringValue(info?.title, "Untitled API"),
     version: stringValue(info?.version, "unknown"),
     specVersion,
+    specFingerprint,
     baseUrl: getBaseUrl(document),
     operations
   };

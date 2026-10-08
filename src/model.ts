@@ -63,6 +63,12 @@ export interface TestStep {
   expectedResult: string;
 }
 
+export interface CaseEvidence {
+  source: "openapi";
+  specFingerprint: string;
+  pointer: string;
+}
+
 export interface PlannedTestCase {
   id: string;
   title: string;
@@ -80,6 +86,7 @@ export interface PlannedTestCase {
   preconditions: string[];
   expectedStatus?: number;
   responseExpectation?: ResponseExpectation;
+  evidence: CaseEvidence[];
   steps: TestStep[];
   warnings: string[];
 }
@@ -115,6 +122,7 @@ export interface TestPlan {
   title: string;
   version: string;
   specVersion: string;
+  specFingerprint: string;
   baseUrl?: string;
   operations: OperationCase[];
 }

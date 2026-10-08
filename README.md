@@ -36,6 +36,18 @@ The current scaffold has a three-command CLI workflow:
 
    The default result path is `test-results\api-results.json`; `--results` overrides it. Alternatively, use `npm.cmd run test:api` with `API_BASE_URL` set in the environment.
 
+### Guided MVP1 review and generation
+
+Use the guided flow to inspect cases, choose which to include, and require explicit approval before test source is written:
+
+```powershell
+npx.cmd tsx src/cli.ts guide --spec examples\petstore\openapi.yaml --objective "Review read-only pet operations"
+```
+
+The CLI shows each case's classification, sample inputs and provenance, preconditions, steps, expected results, warnings, and spec SHA-256/JSON Pointer evidence. Enter `all` or a comma-separated list of case IDs, then type the exact word `APPROVE` to authorize generation for that selection. `edit` returns to case selection; `cancel` or Ctrl+C exits without generating tests. Approval is in-memory and bound to the current plan revision; changing the selection invalidates it. The default generated test path is `tests\generated\api.spec.ts`; the default audit log is `test-results\guided-workflow.jsonl` (override with `--out` or `--audit`). Audit events do not include spec contents, objectives, credentials, or approval tokens.
+
+This MVP1 guided flow does not execute API requests or use a model. The existing low-level `analyze`, `generate`, and `run` commands remain available for direct engine workflows; only the `guide` workflow enforces review and plan approval before generation. Execution approvals and target confirmation are scheduled for MVP2.
+
 ## Agentic application target
 
 The intended service-line demo is a guided, explainable workflow rather than an unrestricted autonomous runner. MVP1 implements the review-to-generation path deterministically; a model, if later approved, may assist only through the same bounded tool contract.
@@ -71,11 +83,11 @@ Only internal `$ref` references (those beginning with `#`) are resolved. Externa
 
 ## Project status
 
-The deterministic foundation is implemented and verified for its current fixture coverage. Node.js 24.21.0/npm 11.19.0 dependencies are installed; typecheck, 9 unit tests, build, generated-test TypeScript checking, and Playwright discovery pass. A local mocked API run verified failure diagnostics and API-key redaction; no live API requests have been run. Phase 1 is complete for its documented exit gate (VAL-04 through VAL-07). Phase 2 is in progress: the provider-neutral MVP1 product/tool contract is drafted for review. Guided CLI MVP1 is not implemented yet. Model/provider decisions are deferred pending service-line guidance. See [the phased backlog](./BACKLOG.md) for current statuses and demo exit criteria.
+The deterministic foundation is implemented and verified for its current fixture coverage. Node.js 24.21.0/npm 11.19.0 dependencies are installed; typecheck, 12 unit/integration tests, build, selected-case generated-test TypeScript checking, and Playwright discovery pass. Tests include the guided CLI approval/revision path and prove generated output contains only selected approved cases. EOF cancellation, output-write failure, and audit-sink failure are covered; process/readline Ctrl+C cancellation is implemented. A local mocked API run verified failure diagnostics and API-key redaction; no live API requests were run. Phases 1-3 are complete (Phase 3 awaits PR review). Model/provider decisions remain deferred pending service-line guidance. See [the phased backlog](./BACKLOG.md) for current statuses and demo exit criteria.
 
 ## Implementation phases
 
-The work is organized into seven gated phases: **0)** deterministic foundation (complete for current verification scope), **1)** engine hardening (complete), **2)** provider-neutral MVP1 product/tool contract (in progress), **3)** deterministic guided CLI MVP1, **4)** authorized API execution MVP2, **5)** optional model integration and agent quality (deferred pending service-line guidance), and **6)** demo readiness. Each phase has explicit dependencies and exit criteria in [BACKLOG.md](./BACKLOG.md); MVP1 can be built and demonstrated without a model provider.
+The work is organized into seven gated phases: **0)** deterministic foundation (complete for current verification scope), **1)** engine hardening (complete), **2)** provider-neutral MVP1 product/tool contract (complete and merged), **3)** deterministic guided CLI MVP1 (complete; ready for PR), **4)** authorized API execution MVP2, **5)** optional model integration and agent quality (deferred pending service-line guidance), and **6)** demo readiness. Each phase has explicit dependencies and exit criteria in [BACKLOG.md](./BACKLOG.md); MVP1 can be built and demonstrated without a model provider.
 
 ## Development
 
