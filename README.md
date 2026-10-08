@@ -76,3 +76,26 @@ npm.cmd run typecheck
 npm.cmd test
 npm.cmd run build
 ```
+
+## Collaboration and Git workflow
+
+`main` is the stable, release-ready branch. `develop` is the shared integration branch. Make all project changes—including code, tests, and documentation—on a short-lived branch created from the latest `develop`; do not commit directly to `main` or `develop`.
+
+```powershell
+git switch develop
+git pull
+git switch -c feature/short-description
+```
+
+Use `fix/short-description` or `docs/short-description` when those names better describe the work. Run the relevant checks, commit the change, and push the feature branch:
+
+```powershell
+npm.cmd run typecheck
+npm.cmd test
+npm.cmd run build
+git add .
+git commit -m "Describe the change"
+git push -u origin feature/short-description
+```
+
+Open a pull request from the feature branch into `develop`, request teammate review, and merge after checks pass. For a release, open a pull request from `develop` into `main` after the integrated changes have been validated. Protect `main` from direct pushes and require review/checks in GitHub repository settings; protect `develop` similarly if the team wants all integration changes reviewed. Delete short-lived branches after they are merged.
