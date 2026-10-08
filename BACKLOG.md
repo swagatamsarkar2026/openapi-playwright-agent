@@ -19,7 +19,7 @@ Work proceeds in order. A phase is complete only when its exit criteria pass; co
 | 1 | Harden and validate the test engine | Complete for documented verification scope | Phase 0 | Serialization/auth/schema/error-path tests pass; generated artifacts are typechecked; execution diagnostics and resource/secret handling have documented tests. |
 | 2 | Provider-neutral MVP1 product and tool contract | Complete; merged to develop/main | Phase 1 | MVP1 boundary, typed deterministic tools, workflow states, approvals, evidence/provenance, audit events, and failure/interrupt behavior are documented without selecting a model provider. |
 | 3 | Deterministic guided CLI MVP1 | Complete | Phase 2 | User can provide a spec/objective, inspect grounded cases, include/exclude candidates, approve a plan revision, and generate tests only from that approved plan. No network execution or model integration occurs. |
-| 4 | Authorized API execution MVP2 | Not started | Phase 3 | Execution requires explicit authorized-target approval; mutating calls need separate approval; results are tied to the approved plan revision and redacted. |
+| 4 | Authorized API execution MVP2 | Complete; ready for PR from `feature/phase-4-authorized-execution` | Phase 3 | Execution requires explicit authorized-target approval; mutating calls need separate approval; results are tied to the approved plan revision and redacted. |
 | 5 | Optional model integration and agent quality | Deferred; service-line guidance required | MVP1; provider/data/hosting approval | Provider strategy and inference/data policy are approved; model is limited to the provider-neutral contract; groundedness, prompt-injection, approval-bypass, secret, and interruption tests pass. |
 | 6 | Service-line demo readiness | Not started | Phase 4; Phase 5 only if model integration is approved for demo | Safe demo target, reset plan, known limitations, and end-to-end acceptance criteria are verified. MVP1 can be demonstrated without an LLM. |
 
@@ -61,10 +61,11 @@ Phase 1 verification: 9 unit tests, typecheck, build, generated-test TypeScript 
 
 ### Phase 4 — Authorized API execution MVP2
 
-- [ ] Collect and confirm an authorized non-production target and authentication approach before any API request.
-- [ ] Require separate explicit approval for execution and a separate opt-in for mutating calls (AGT-05).
-- [ ] Bind execution and results to the approved plan revision; preserve redacted result reporting.
-- [ ] Implement bounded deterministic orchestration and audit of tool calls, approvals, plan changes, and outcomes (AGT-06).
+- [x] Collect and confirm an authorized non-production target and authentication approach before any API request; require HTTPS except for loopback, preflight required environment credentials, and never print their values.
+- [x] Require separate explicit approval for target, authentication, and execution; require a separate opt-in and confirmation for mutating cases (AGT-05).
+- [x] Bind execution metadata, audit events, and result summaries to guided plan ID/revision and spec/target fingerprints; preserve redacted result reporting.
+- [x] Implement bounded deterministic orchestration with a single generated test file, fixed Playwright entry point, per-test timeout, 10-minute process cap, and local audit of approvals/outcomes (AGT-06).
+- **Verification:** unapproved artifacts, declined targets, and missing credentials are rejected before API invocation; mutation approval is independently required; an authenticated read-only plan passed against an isolated local mock with plan-bound results and audit. Typecheck, all 17 tests, build, and diff checks pass. No external target has been exercised.
 - **Exit:** tests prove unapproved plans, targets, and mutating operations cannot reach the API; no arbitrary shell execution is exposed.
 
 ### Phase 5 — Optional model integration and agent quality
@@ -84,8 +85,8 @@ Phase 1 verification: 9 unit tests, typecheck, build, generated-test TypeScript 
 
 ### Recommended next actions
 
-1. Create a PR from `feature/guided-cli-mvp1` into `develop`; promote to `main` only through the established branch workflow.
-2. Begin Phase 4 only with an explicitly authorized non-production target and clear execution approval policy; MVP1 can already prepare and review test candidates without API access.
+1. Push `feature/phase-4-authorized-execution` and open a PR into `develop`; promote to `main` only through the established branch workflow.
+2. Keep real-service verification separate until an authorized non-production target is explicitly provided.
 3. Ask the service line for model/provider, inference/data, and hosting guidance before starting optional Phase 5.
 4. Keep all implementation work on a short-lived feature branch from `develop` and use pull requests for integration.
 
@@ -125,8 +126,8 @@ The near-term target is a deterministic, provider-neutral MVP1 guided CLI. No LL
 | AGT-02 | P0 | Define agent workflow and typed tool contract | Complete; merged to develop/main | Document states, deterministic typed tools, approval/revision binding, audit events, evidence, and failure/interrupt behavior. MVP1 excludes run/summarize tools. |
 | AGT-03 | P0 | Implement MVP1 local intake | Complete; Phase 3 | User can provide a local spec and testing objective. Target/auth intake belongs to MVP2 before API execution. |
 | AGT-04 | P0 | Add grounded test-case explanation and selection | Complete; Phase 3 | Every contract assertion links to spec evidence or is labeled as a proposal; user can include/exclude candidates and approve before generation. |
-| AGT-05 | P0 | Add execution approval policy | Deferred to MVP2 / Phase 4 | No request is sent until the user confirms an authorized target; mutating tests need separate explicit approval and a non-production target. MVP1 does not run tests. |
-| AGT-06 | P1 | Implement bounded orchestration with audit trail | Deferred; only if model integration is approved | Record tool calls, approvals, plan changes, and outcomes; use bounded deterministic tools; model output, if added, is schema-validated and cannot invoke shell commands. |
+| AGT-05 | P0 | Add execution approval policy | Complete; Phase 4 | No request is sent until the user confirms an authorized target; mutating tests need separate explicit approval and a non-production target. MVP1 does not run tests. |
+| AGT-06 | P1 | Implement bounded orchestration with audit trail | Complete; Phase 4 | Record tool calls, approvals, plan changes, and outcomes; use bounded deterministic tools; model output, if added, is schema-validated and cannot invoke shell commands. |
 | AGT-07 | P1 | Add guided result interpretation | Deferred to a post-MVP1 phase | Summarize pass/fail/skip by stable case ID, cite step evidence, distinguish observed outcomes from hypotheses, and do not fabricate causes. |
 | AGT-08 | P1 | Implement deterministic guided CLI MVP1 | Complete; Phase 3 | User can complete the spec-to-approved-plan-to-test-generation workflow using guided prompts without editing generated files manually; no model or API request is required. |
 | AGT-09 | P1 | Prepare safe demo dataset/spec and scripted walkthrough | Not started | Reproducible demo uses a non-production target, known credentials or mock auth, representative positive/negative cases, and documented reset/cleanup. |

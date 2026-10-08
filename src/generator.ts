@@ -1,11 +1,19 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import type { ApprovedExecutionPlan, ExecutionPlanDetails } from "./execution.js";
+import {
+  createExecutionPlanMetadata,
+  generatedExecutionContentFingerprint,
+  requiredAuthenticationEnvironmentVariables,
+  serializeExecutionPlanMarker
+} from "./execution.js";
 import type { TestPlan } from "./model.js";
 
-function testSource(plan: TestPlan, includeMutating: boolean): string {
+function testSource(plan: TestPlan, includeMutating: boolean, executionPlan?: ApprovedExecutionPlan): string {
   const serialized = JSON.stringify(plan.operations.flatMap(operation => operation.testCases), null, 2);
   const baseUrl = plan.baseUrl ? JSON.stringify(plan.baseUrl) : "undefined";
-  return `import { test, expect } from "@playwright/test";
+  return `${serializeExecutionPlanMarker(executionPlan)}
+import { test, expect } from "@playwright/test";
 import type { APIResponse, TestInfo } from "@playwright/test";
 
 type GeneratedCase = {
@@ -69,6 +77,7 @@ type SchemaExpectation = {
 const cases = ${serialized} as GeneratedCase[];
 const defaultBaseUrl: string | undefined = ${baseUrl};
 const includeMutating = ${includeMutating} && process.env.INCLUDE_MUTATING === "true";
+const executionApprovalBinding = ${JSON.stringify(executionPlan?.approvalBinding ?? "")};
 
 function resolvePath(path: string, parameters: readonly { name: string; in: string; value: unknown }[]): string {
   let resolved = path;
@@ -182,6 +191,9 @@ async function attachDiagnostic(
 
 for (const testCase of cases) {
   test(\`\${testCase.id}: \${testCase.title}\`, async ({ request }, testInfo) => {
+    if (!executionApprovalBinding || process.env.API_EXECUTION_APPROVAL !== executionApprovalBinding) {
+      throw new Error("Execution approval is missing or does not match this generated plan.");
+    }
     test.skip(testCase.execution !== "automated", testCase.warnings.join(" ") || "This case requires review before automation.");
     test.skip(testCase.warnings.length > 0, testCase.warnings.join(" "));
     test.skip(testCase.mutating && !includeMutating, "Mutating operation excluded. Regenerate with --include-mutating after reviewing its effects.");
@@ -238,6 +250,7 @@ for (const testCase of cases) {
             response = await request.fetch(url.toString(), {
               method: testCase.method.toUpperCase(),
               headers,
+              maxRedirects: 0,
               ...(testCase.body === undefined ? {} : { data: JSON.stringify(testCase.body) })
             });
           } else if (step.kind === "assert-status") {
@@ -369,10 +382,37 @@ function markdownPlan(plan: TestPlan): string {
 export async function writeGeneratedTests(
   plan: TestPlan,
   outputPath: string,
-  includeMutating: boolean
+  includeMutating: boolean,
+  executionPlan?: ExecutionPlanDetails
 ): Promise<void> {
+  const cases = plan.operations.flatMap(operation => operation.testCases);
+  let generatedSource = testSource(plan, includeMutating);
+  if (executionPlan) {
+    const caseIds = cases.map(testCase => testCase.id);
+    const executableCases = cases.filter(testCase => testCase.execution === "automated" && testCase.warnings.length === 0);
+    const runnableCaseIds = executableCases.map(testCase => testCase.id);
+    const mutatingCaseIds = executableCases.filter(testCase => testCase.mutating).map(testCase => testCase.id);
+    const authenticationEnvironmentVariables = requiredAuthenticationEnvironmentVariables(executableCases);
+    if (executionPlan.specFingerprint !== plan.specFingerprint
+      || caseIds.length !== executionPlan.caseIds.length
+      || caseIds.some((caseId, index) => caseId !== executionPlan.caseIds[index])
+      || runnableCaseIds.length !== executionPlan.runnableCaseIds.length
+      || runnableCaseIds.some((caseId, index) => caseId !== executionPlan.runnableCaseIds[index])
+      || mutatingCaseIds.length !== executionPlan.mutatingCaseIds.length
+      || mutatingCaseIds.some((caseId, index) => caseId !== executionPlan.mutatingCaseIds[index])
+      || authenticationEnvironmentVariables.length !== executionPlan.authenticationEnvironmentVariables.length
+      || authenticationEnvironmentVariables.some((name, index) => name !== executionPlan.authenticationEnvironmentVariables[index])) {
+      throw new Error("Execution approval metadata does not match the test plan being generated.");
+    }
+    const generatedContentFingerprint = generatedExecutionContentFingerprint(generatedSource);
+    const approvedMetadata = createExecutionPlanMetadata(executionPlan, generatedContentFingerprint);
+    generatedSource = testSource(plan, includeMutating, approvedMetadata);
+    if (generatedExecutionContentFingerprint(generatedSource) !== generatedContentFingerprint) {
+      throw new Error("Generated test source failed its execution-plan integrity check.");
+    }
+  }
   await mkdir(dirname(outputPath), { recursive: true });
-  await writeFile(outputPath, testSource(plan, includeMutating), "utf8");
+  await writeFile(outputPath, generatedSource, "utf8");
 }
 
 export async function writePlan(plan: TestPlan, outputPath: string): Promise<void> {

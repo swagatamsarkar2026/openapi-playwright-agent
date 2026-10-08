@@ -30,7 +30,7 @@ Project root: `C:\Workspace\openapi-playwright-agent`
 
 `BACKLOG.md` is the source of truth for implementation status, pending verification, the agentic product backlog, and service-line demo acceptance criteria. Update its status when work is verified; installation or code presence alone does not mean a feature has passed validation.
 
-Implementation is split into gated phases 0-6 in `BACKLOG.md`. Phases 0-3 are complete (Phases 0-2 are merged; Phase 3 is ready for PR). Phase 2 defined a provider-neutral MVP1 contract in `docs/AGENT-CONTRACT.md`; model/provider, inference/data policy, and hosting decisions (AGT-01) are intentionally deferred until service-line guidance. Phase 3 adds deterministic interactive review/selection/approval, evidence fingerprints and JSON Pointers, revision-bound test generation, local JSONL audit, and cancellation. The guided MVP1 path does not execute API requests or use a model.
+Implementation is split into gated phases 0-6 in `BACKLOG.md`. Phases 0-3 are complete and merged; Phase 4 is complete and ready for PR on `feature/phase-4-authorized-execution`, based on synchronized `develop` and `main` at `453425d`. Phase 2 defined a provider-neutral MVP1 contract in `docs/AGENT-CONTRACT.md`; model/provider, inference/data policy, and hosting decisions (AGT-01) are intentionally deferred until service-line guidance. Phase 3 adds deterministic interactive review/selection/approval, evidence fingerprints and JSON Pointers, revision-bound test generation, local JSONL audit, and cancellation. Phase 4 adds guided approval metadata integrity checks, explicit authorized non-production target confirmation, credential preflight/auth confirmation, separate execution approval, and further approval for mutating cases. Results and run events are bound to the plan revision. Execution is limited to one integrity-checked generated file, a fixed Playwright entry point, no automatic redirects, a 10-minute process cap, and existing per-test timeout. These local controls are safety guardrails, not a boundary against a user deliberately changing code or making requests directly. No live service was called.
 
 ## Environment and next steps
 
@@ -44,9 +44,9 @@ npm.cmd test
 npm.cmd run build
 ```
 
-All three commands passed; `npm test` reports 12 passing tests. The suite covers Swagger/OpenAPI versions, sample precedence, named request-body examples, 2xx/4xx response cases, API-key wiring, parameter styles and warnings, nested response types/enums/bounds/lengths, stable IDs, plan rendering, external-reference rejection, resource bounds, credential redaction, approval/revision invalidation, selection-only generation, EOF cancellation, output-write failure, and audit-sink failure. A one-case guided output passed standalone TypeScript checking and Playwright discovery. Generated Petstore tests were also previously checked. A temporary local mock API run verified expected/actual status reporting and API-key redaction; no live API requests were made. Process/readline Ctrl+C cancellation is implemented; child-process SIGINT simulation is not a faithful Ctrl+C test on Windows.
+All three commands passed; `npm test` reports 17 passing tests. In addition to the earlier engine and guided-flow cases, the suite covers execution metadata/source integrity, target validation, required credential preflight without value disclosure, unapproved artifact refusal, explicit target/execution/mutation approval gates, and plan-bound results/audit. A temporary authenticated local mock API verified the approved read-only path, and a declined-target attempt made zero requests. No public or live API target was called.
 
-Current roadmap: Phases 0-3 are complete; Phase 2 is merged and Phase 3 is ready for review. Current branch: `feature/guided-cli-mvp1`, created from the latest `develop` after Phase 2 was merged through `develop` and `main`. Commit and push this feature branch, then open a pull request into `develop`; do not merge directly to shared branches. Phase 4 API execution requires an explicitly authorized non-production target.
+Current roadmap: Phases 0-3 are complete and merged; Phase 4 is complete and ready for PR from `feature/phase-4-authorized-execution`. `develop` and `main` were synchronized at `453425d` before the feature branch was created. Old merged feature branches were deleted locally and remotely. Commit/push the Phase 4 feature branch and open a PR into `develop`; do not merge directly to shared branches. A real service requires separate explicit non-production authorization.
 
 Running API tests requires a reachable, authorized target service and any required credentials. Browser binaries are not required because Playwright is used for API requests, not browser automation. Analysis accepts internal `$ref` values only; external local/remote references are rejected and must be inlined or bundled. See README for the input/resource limits and result-report policy.
 
@@ -61,7 +61,8 @@ Running API tests requires a reachable, authorized target service and any requir
 - `src\run-reporter.ts` — machine-readable Playwright result output and safe failure diagnostics
 - `src\spec-safety.ts` — specification resource and reference bounds
 - `src\redaction.ts` — credential redaction for result summaries and guided audit identifiers
-- `src\guided-workflow.ts` — typed MVP1 review, selection, approval, audit, and generation functions
+- `src\guided-workflow.ts` — typed review, selection, plan approval, audit, generation, and execution events
+- `src\execution.ts` — approved-plan metadata, target validation, credential requirements, and generated-file path policy
 - `src\model.ts` — normalized plan and operation types
 - `src\cli.test.ts` — scaffold tests, including Swagger 2.0 and OpenAPI 3.1 coverage
 - `examples\petstore\openapi.yaml` — sample input only
