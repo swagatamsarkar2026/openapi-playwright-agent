@@ -2,6 +2,13 @@
 
 This file tracks delivery status for the generic API test generator and the planned agentic service-line demo. **Implemented (unverified)** means code or documentation is present but has not passed the relevant checks. Mark items **Verified** only after running and recording those checks.
 
+## Source control and collaboration
+
+- `main` is the stable, release-ready branch; `develop` is the shared integration branch.
+- Create every code, test, or documentation change on a short-lived feature branch from the latest `develop`; do not commit directly to `main` or `develop`.
+- Push feature branches and use pull requests into `develop` for review and validation. Promote validated `develop` to `main` through a release pull request.
+- See the step-by-step commands and branch protection guidance in the README's [Git workflow](./README.md#collaboration-and-git-workflow).
+
 ## Phased implementation roadmap
 
 Work proceeds in order. A phase is complete only when its exit criteria pass; code being present is not enough. P0 dependencies or decisions block later phases where noted.

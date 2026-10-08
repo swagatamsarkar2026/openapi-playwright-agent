@@ -6,6 +6,14 @@ OpenAPI Playwright Agent: a generic API testing project whose long-term goal is 
 
 Project root: `C:\Workspace\openapi-playwright-agent`
 
+## Source control and collaboration
+
+- GitHub repository: `https://github.com/swagatamsarkar2026/openapi-playwright-agent`
+- `main` is the stable branch; `develop` is the shared integration branch.
+- All future project changes (code, tests, and docs) must be made on a short-lived branch created from the latest `develop`, then pushed and proposed to `develop` via pull request.
+- Promote validated `develop` to `main` via a release pull request. Do not commit directly to either shared branch.
+- README contains the step-by-step Git commands. Configure branch protection and required reviews/checks in GitHub settings.
+
 ## Current scope
 
 - Supports Swagger 2.0 and OpenAPI 3.0/3.1 JSON or YAML inputs.
