@@ -1,0 +1,381 @@
+import assert from "node:assert/strict";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import test from "node:test";
+import { buildTestPlan } from "./openapi.js";
+import { writeGeneratedTests, writePlan } from "./generator.js";
+
+const sampleSpec = resolve("examples/petstore/openapi.yaml");
+
+test("builds a plan for a generic OpenAPI document", async () => {
+  const plan = await buildTestPlan(sampleSpec);
+  assert.equal(plan.specVersion, "3.0.0");
+  assert.equal(plan.operations.length, 3);
+  assert.equal(plan.operations.find(operation => operation.id === "listPets")?.successStatuses[0], 200);
+  const listCase = plan.operations.find(operation => operation.id === "listPets")?.testCases[0];
+  assert.equal(listCase?.id, "TC-LISTPETS-POS-200");
+  assert.ok(listCase?.steps.some(step => step.kind === "assert-status" && step.expectedResult === "HTTP 200."));
+  assert.equal(plan.operations.find(operation => operation.id === "listPets")?.parameters[0]?.valueSource, "schema-derived numeric sample");
+  const notFoundCase = plan.operations.find(operation => operation.id === "showPetById")?.testCases.find(item => item.expectedStatus === 404);
+  assert.equal(notFoundCase?.caseType, "negative");
+  assert.equal(notFoundCase?.execution, "manual-review");
+  assert.deepEqual(notFoundCase?.responseExpectation?.requiredProperties, ["code", "message"]);
+  assert.ok(notFoundCase?.steps.some(step => step.expectedResult.includes('contains "message"')));
+  assert.ok(notFoundCase?.steps.length);
+});
+
+test("writes a plan and keeps mutating cases opted out by default", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "openapi-agent-"));
+  try {
+    const plan = await buildTestPlan(sampleSpec);
+    const planPath = join(directory, "plan.md");
+    const testPath = join(directory, "api.spec.ts");
+    await writePlan(plan, planPath);
+    await writeGeneratedTests(plan, testPath, false);
+    assert.match(await readFile(planPath, "utf8"), /POST \S+/);
+    assert.match(await readFile(testPath, "utf8"), /Mutating operation excluded/);
+    const generated = await readFile(testPath, "utf8");
+    assert.match(generated, /test\.step/);
+    assert.match(generated, /expect\(response\.status\(\)\)\.toBe\(testCase\.expectedStatus\)/);
+    assert.match(generated, /manual-review/);
+    assert.match(await readFile(planPath, "utf8"), /Test steps/);
+    assert.match(await readFile(planPath, "utf8"), /source: schema-derived numeric sample/);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("accepts Swagger 2.0 and OpenAPI 3.1 inputs", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "openapi-versions-"));
+  try {
+    const swaggerPath = join(directory, "swagger.yaml");
+    const openApi31Path = join(directory, "openapi-31.yaml");
+    await writeFile(swaggerPath, `swagger: "2.0"
+info:
+  title: Legacy API
+  version: "1.0"
+host: api.example.test
+schemes:
+  - https
+basePath: /v2
+paths:
+  /health:
+    get:
+      responses:
+        "200":
+          description: Healthy
+`);
+    await writeFile(openApi31Path, `openapi: 3.1.0
+info:
+  title: Modern API
+  version: "1.0"
+paths:
+  /health:
+    get:
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                type: [string, "null"]
+    `);
+
+    const swaggerPlan = await buildTestPlan(swaggerPath);
+    const openApi31Plan = await buildTestPlan(openApi31Path);
+    assert.equal(swaggerPlan.specVersion, "2.0");
+    assert.equal(swaggerPlan.baseUrl, "https://api.example.test/v2");
+    assert.equal(openApi31Plan.specVersion, "3.1.0");
+    assert.equal(openApi31Plan.operations.length, 1);
+    assert.deepEqual(openApi31Plan.operations[0]?.responseExpectations[0]?.schema?.type, ["string", "null"]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("uses OpenAPI defaults, enums, named examples, and request-body examples", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "openapi-samples-"));
+  try {
+    const specPath = join(directory, "samples.yaml");
+    await writeFile(specPath, `openapi: 3.0.3
+info:
+  title: Sample precedence API
+  version: "1.0"
+servers:
+  - url: https://api.example.test/v1
+paths:
+  /records/{recordId}:
+    post:
+      operationId: updateRecord
+      parameters:
+        - name: recordId
+          in: path
+          required: true
+          schema:
+            type: string
+            default: record-default
+        - name: state
+          in: query
+          schema:
+            type: string
+            enum: [ready, pending]
+        - name: trace
+          in: header
+          examples:
+            sample:
+              value: trace-example
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            examples:
+              update:
+                value:
+                  displayName: named-example
+      responses:
+        "200":
+          description: Updated
+        "204":
+          description: Updated without a body
+        "422":
+          description: Invalid entity
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code]
+                properties:
+                  code:
+                    type: integer
+`);
+
+    const plan = await buildTestPlan(specPath);
+    const operation = plan.operations[0];
+    assert.ok(operation);
+    assert.equal(operation.parameters[0]?.value, "record-default");
+    assert.equal(operation.parameters[0]?.valueSource, "schema default");
+    assert.equal(operation.parameters[1]?.value, "ready");
+    assert.equal(operation.parameters[1]?.valueSource, "first schema enum value");
+    assert.equal(operation.parameters[2]?.value, "trace-example");
+    assert.equal(operation.parameters[2]?.valueSource, "first named parameter example");
+    assert.deepEqual(operation.body, { displayName: "named-example" });
+    assert.equal(operation.bodySource, "first named request media example");
+    assert.deepEqual(operation.successStatuses, [200, 204]);
+    assert.deepEqual(operation.documentedErrorResponses.map(response => response.status), [422]);
+    assert.deepEqual(operation.testCases.map(testCase => testCase.expectedStatus), [200, 204, 422]);
+    assert.equal(operation.testCases[2]?.responseExpectation?.requiredProperties[0], "code");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("surfaces unsupported complex parameter serialization and supported API-key configuration", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "openapi-review-"));
+  try {
+    const specPath = join(directory, "review.yaml");
+    await writeFile(specPath, `openapi: 3.0.3
+info:
+  title: Review API
+  version: "1.0"
+servers:
+  - url: https://api.example.test
+security:
+  - clientKey: []
+paths:
+  /search:
+    get:
+      operationId: searchRecords
+      parameters:
+        - name: filters
+          in: query
+          style: deepObject
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [active, archived]
+        - name: session
+          in: cookie
+          schema:
+            type: string
+            example: session-value
+        - name: reserved
+          in: query
+          allowReserved: true
+          schema:
+            type: string
+            example: "a/b"
+      responses:
+        "200":
+          description: Search results
+  /health:
+    get:
+      operationId: getHealth
+      responses:
+        "200":
+          description: Healthy
+components:
+  securitySchemes:
+    clientKey:
+      type: apiKey
+      in: header
+      name: X-Client-Key
+`);
+
+    const plan = await buildTestPlan(specPath);
+    const operation = plan.operations[0];
+    assert.ok(operation);
+    assert.equal(operation.security[0]?.type, "apiKey");
+    assert.equal(operation.security[0]?.name, "clientKey");
+    assert.ok(operation.warnings.some(warning => warning.includes("unsupported query serialization")));
+    assert.equal(operation.parameters[0]?.serializationSupported, false);
+    assert.ok(operation.warnings.some(warning => warning.includes("Cookie parameter")));
+    assert.equal(operation.parameters[2]?.serializationSupported, false);
+
+    const generatedPath = join(directory, "generated.spec.ts");
+    await writeGeneratedTests(plan, generatedPath, false);
+    const generated = await readFile(generatedPath, "utf8");
+    assert.match(generated, /API_KEY_\$\{suffix\}/);
+    assert.match(generated, /X-Client-Key/);
+    assert.match(generated, /test\.skip\(testCase\.warnings\.length > 0/);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("serializes supported OpenAPI query, path, and header parameter shapes", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "openapi-serialization-"));
+  try {
+    const specPath = join(directory, "serialization.yaml");
+    await writeFile(specPath, `openapi: 3.0.3
+info:
+  title: Serialization API
+  version: "1.0"
+servers:
+  - url: https://api.example.test
+paths:
+  /records/{recordId}:
+    get:
+      operationId: getRecord
+      parameters:
+        - name: recordId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: record-1
+        - name: labels
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [red, blue]
+        - name: filter
+          in: query
+          style: deepObject
+          explode: true
+          schema:
+            type: object
+            properties:
+              active:
+                type: boolean
+                example: true
+        - name: X-Fields
+          in: header
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [id, name]
+      responses:
+        "200":
+          description: Found
+`);
+
+    const plan = await buildTestPlan(specPath);
+    const operation = plan.operations[0];
+    assert.ok(operation);
+    assert.deepEqual(operation.warnings, []);
+    assert.deepEqual(operation.parameters.map(parameter => [parameter.name, parameter.style, parameter.explode, parameter.serializationSupported]), [
+      ["recordId", "simple", false, true],
+      ["labels", "form", true, true],
+      ["filter", "deepObject", true, true],
+      ["X-Fields", "simple", false, true]
+    ]);
+    const outputPath = join(directory, "serialization.spec.ts");
+    await writeGeneratedTests(plan, outputPath, false);
+    const generated = await readFile(outputPath, "utf8");
+    assert.match(generated, /return value\.map\(item => \[parameter\.name, String\(item\)\]\)/);
+    assert.match(generated, /`\$\{parameter\.name\}\[\$\{key\}\]`/);
+    assert.match(generated, /value\.map\(String\)\.join\(","\)/);
+    assert.match(generated, /serializeHeaderValue\(parameter\)/);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("plans nested response type, enum, range, length, and array-item assertions", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "openapi-schema-"));
+  try {
+    const specPath = join(directory, "schema.yaml");
+    await writeFile(specPath, `openapi: 3.0.3
+info:
+  title: Nested schema API
+  version: "1.0"
+paths:
+  /items:
+    get:
+      operationId: listItems
+      responses:
+        "200":
+          description: Items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [id, detail]
+                  properties:
+                    id:
+                      type: integer
+                      minimum: 1
+                      maximum: 10
+                    detail:
+                      type: object
+                      required: [state, label]
+                      properties:
+                        state:
+                          type: string
+                          enum: [ready, pending]
+                        label:
+                          type: string
+                          minLength: 2
+                          maxLength: 8
+`);
+
+    const plan = await buildTestPlan(specPath);
+    const expectation = plan.operations[0]?.responseExpectations[0];
+    assert.equal(expectation?.schema?.type, "array");
+    assert.equal(expectation?.schema?.items?.type, "object");
+    assert.deepEqual(expectation?.schema?.items?.requiredProperties.map(property => property.name), ["id", "detail"]);
+    assert.deepEqual(expectation?.schema?.items?.requiredProperties[1]?.schema?.requiredProperties[0]?.schema?.enum, ["ready", "pending"]);
+    assert.equal(expectation?.schema?.items?.requiredProperties[1]?.schema?.requiredProperties[1]?.schema?.minLength, 2);
+
+    const outputPath = join(directory, "schema.spec.ts");
+    await writeGeneratedTests(plan, outputPath, false);
+    const generated = await readFile(outputPath, "utf8");
+    assert.match(generated, /Number\.isInteger\(value\)/);
+    assert.match(generated, /toBeGreaterThanOrEqual\(schema\.minimum\)/);
+    assert.match(generated, /toBeLessThanOrEqual\(schema\.maxLength\)/);
+    assert.match(generated, /expect\(schema\.enum, location\)\.toContainEqual\(value\)/);
+    assert.match(generated, /assertResponseSchema\(item, itemSchema/);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
