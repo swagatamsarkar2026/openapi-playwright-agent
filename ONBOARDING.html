@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101828">
+  <title>OpenAPI Playwright Agent | Getting started</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #101828;
+      --muted: #475467;
+      --line: #d0d5dd;
+      --paper: #fff;
+      --canvas: #f3f6fb;
+      --blue: #175cd3;
+      --blue-soft: #eff8ff;
+      --green: #067647;
+      --green-soft: #ecfdf3;
+      --amber: #93370d;
+      --amber-soft: #fffaeb;
+      --code: #101828;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--canvas);
+      color: var(--ink);
+      font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    a { color: var(--blue); }
+    .hero {
+      padding: 56px 24px 48px;
+      background:
+        radial-gradient(ellipse at 90% 10%, #3448a522, transparent 38%),
+        linear-gradient(125deg, #101828, #182b52);
+      color: #fff;
+    }
+    .hero-inner, main, footer { width: min(980px, 100% - 40px); margin: 0 auto; }
+    .eyebrow { color: #b2ccff; font-size: .78rem; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
+    h1 { max-width: 760px; margin: 10px 0 12px; font-size: clamp(2rem, 5vw, 3.3rem); line-height: 1.12; }
+    .hero p { max-width: 720px; margin: 0; color: #e4e7ec; font-size: 1.08rem; }
+    .badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+    .badge { border: 1px solid #ffffff40; border-radius: 999px; padding: 5px 11px; color: #f2f4f7; font-size: .83rem; }
+    main { padding: 30px 0 52px; }
+    .intro, .step, .panel { border: 1px solid var(--line); border-radius: 14px; background: var(--paper); box-shadow: 0 2px 8px #1018280a; }
+    .intro { margin-bottom: 18px; padding: 20px 24px; }
+    .intro p { margin: 0 0 10px; color: var(--muted); }
+    .intro p:last-child { margin-bottom: 0; }
+    .step { display: grid; grid-template-columns: 54px 1fr; gap: 16px; margin: 14px 0; padding: 22px 24px; }
+    .number { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 50%; background: var(--blue-soft); color: var(--blue); font-weight: 800; }
+    h2 { margin: 0 0 8px; font-size: 1.24rem; line-height: 1.35; }
+    h3 { margin: 20px 0 6px; font-size: 1rem; }
+    p { margin: 8px 0; color: var(--muted); }
+    ul, ol { padding-left: 22px; color: var(--muted); }
+    li { margin: 5px 0; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+    code { border-radius: 4px; background: #f2f4f7; padding: 2px 5px; color: #344054; font-size: .92em; }
+    .command { position: relative; margin: 12px 0; }
+    pre { overflow-x: auto; margin: 0; border-radius: 9px; background: var(--code); padding: 16px 88px 16px 17px; color: #e4e7ec; font-size: .9rem; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+    pre code { padding: 0; background: transparent; color: inherit; }
+    .copy {
+      position: absolute; top: 9px; right: 9px; border: 1px solid #ffffff45; border-radius: 6px;
+      background: #ffffff14; padding: 5px 9px; color: #fff; cursor: pointer; font: inherit; font-size: .78rem;
+    }
+    .callout { margin: 14px 0 0; border-left: 4px solid var(--blue); border-radius: 5px; background: var(--blue-soft); padding: 12px 15px; color: #1849a9; }
+    .callout.warn { border-color: #f79009; background: var(--amber-soft); color: var(--amber); }
+    .callout.good { border-color: #12b76a; background: var(--green-soft); color: var(--green); }
+    .two-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+    .mini { border: 1px solid var(--line); border-radius: 9px; padding: 13px; }
+    .mini strong { display: block; margin-bottom: 3px; color: var(--ink); }
+    .mini span { color: var(--muted); font-size: .92rem; }
+    .result { display: inline-block; margin-top: 8px; border-radius: 6px; background: var(--green-soft); padding: 5px 9px; color: var(--green); font: 600 .87rem ui-monospace, monospace; }
+    footer { border-top: 1px solid var(--line); padding: 18px 0 32px; color: var(--muted); font-size: .9rem; }
+    @media (max-width: 620px) {
+      .hero { padding: 38px 0 34px; }
+      .hero-inner, main, footer { width: min(100% - 24px, 980px); }
+      .step { grid-template-columns: 38px 1fr; gap: 10px; padding: 17px 13px; }
+      .number { width: 34px; height: 34px; }
+      .two-col { grid-template-columns: 1fr; }
+      pre { padding-right: 76px; font-size: .82rem; }
+    }
+    @media print {
+      body { background: #fff; }
+      .hero { padding: 24px 0; background: #fff; color: var(--ink); }
+      .hero p, .badge { color: var(--muted); }
+      .badge { border-color: var(--line); }
+      .copy { display: none; }
+      .step, .intro { box-shadow: none; break-inside: avoid; }
+      pre { color: #fff; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="hero-inner">
+      <div class="eyebrow">Project onboarding · 10–15 minutes</div>
+      <h1>From Swagger spec to reviewed, automated API tests</h1>
+      <p>Follow one safe, read-only Petstore example to see how the agent derives test candidates, lets you review them, and runs only the plan you explicitly approve.</p>
+      <div class="badges">
+        <span class="badge">TypeScript</span>
+        <span class="badge">Playwright API testing</span>
+        <span class="badge">OpenAPI / Swagger</span>
+        <span class="badge">Guided approvals</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="intro" aria-label="Before you begin">
+      <h2>Before you begin</h2>
+      <p>Open a terminal in the project root. You need Node.js 20+ and installed project dependencies. This walkthrough downloads Petstore's live Swagger 2.0 spec, so the generated route and authentication scheme match the service's current contract.</p>
+      <p>The repository also includes <code>examples\petstore\openapi.yaml</code>, a separate OpenAPI 3.0 teaching fixture. Its <code>/v1/pets</code> route does not match the legacy public service's current <code>/v2</code> API, so use the live spec for the network example below.</p>
+      <div class="callout warn"><strong>Use the public example responsibly.</strong> Do not send credentials, customer data, or mutating requests. For other APIs, run only against a target you are authorized to test and that is confirmed non-production.</div>
+    </section>
+
+    <section class="step" id="step-1">
+      <div class="number" aria-hidden="true">1</div>
+      <div>
+        <h2>Choose a Swagger/OpenAPI specification</h2>
+        <p>The input spec defines the API contract: operations, parameters, response codes, schemas, and optionally a server URL. Petstore is just the example—use your own local JSON/YAML spec in the same workflow.</p>
+        <div class="two-col">
+          <div class="mini"><strong>Live service contract</strong><span><a href="https://petstore.swagger.io/v2/swagger.json">Swagger Petstore v2 Swagger JSON</a> is downloaded in the next step.</span></div>
+          <div class="mini"><strong>OpenAPI teaching fixture</strong><span><code>examples\petstore\openapi.yaml</code> · <a href="https://learn.openapis.org/examples/v3.0/petstore.html">OpenAPI 3.0 example</a></span></div>
+        </div>
+        <p>Download a local copy of the live Swagger spec. The parser reads this local file and does not fetch external references.</p>
+        <div class="command"><pre><code>New-Item -ItemType Directory -Force test-results | Out-Null
+curl.exe --fail --location --silent --show-error https://petstore.swagger.io/v2/swagger.json -o test-results\petstore-live-swagger.json</code></pre><button class="copy" type="button">Copy</button></div>
+        <p>Optional: inspect the derived plan without entering the guided approval flow.</p>
+        <div class="command"><pre><code>npx.cmd tsx src/cli.ts analyze --spec test-results\petstore-live-swagger.json --out test-results\petstore-live-plan.md</code></pre><button class="copy" type="button">Copy</button></div>
+        <p>The plan contains stable case IDs, expected results, sample-value provenance, uncertainty notes, and links back to the spec.</p>
+      </div>
+    </section>
+
+    <section class="step" id="step-2">
+      <div class="number" aria-hidden="true">2</div>
+      <div>
+        <h2>Generate candidates and review them</h2>
+        <p>Start the guided workflow. It reads and validates the spec, then explains the cases it derived. The objective helps frame your review; it does not override facts in the spec.</p>
+        <div class="command"><pre><code>npx.cmd tsx src/cli.ts guide --spec test-results\petstore-live-swagger.json --objective "Check a read-only Petstore inventory operation" --out tests\generated\onboarding-petstore.spec.ts --audit test-results\onboarding-workflow.jsonl</code></pre><button class="copy" type="button">Copy</button></div>
+        <p>Find the read-only inventory candidate with this stable ID:</p>
+        <div class="result">TC-GETINVENTORY-POS-200 · GET /store/inventory · expected HTTP 200</div>
+        <p>Review its expected response, required authentication, risk, and Swagger evidence. Other Petstore cases include writes, unsupported/missing samples, or manual-review-only scenarios; they are not part of this smoke test.</p>
+        <div class="callout"><strong>Review means more than accepting a generated sample.</strong> Samples are derived from examples/defaults/schema and may not identify a real resource. Negative cases remain manual-review until a safe trigger is chosen.</div>
+      </div>
+    </section>
+
+    <section class="step" id="step-3">
+      <div class="number" aria-hidden="true">3</div>
+      <div>
+        <h2>Select exactly what to include, then approve</h2>
+        <p>At the case-selection prompt, enter only the inventory ID. Do not enter <code>all</code> for this public-service walkthrough.</p>
+        <div class="command"><pre><code>TC-GETINVENTORY-POS-200</code></pre><button class="copy" type="button">Copy</button></div>
+        <p>Check that the CLI reports one selected case. At the approval prompt, type the exact word:</p>
+        <div class="command"><pre><code>APPROVE</code></pre><button class="copy" type="button">Copy</button></div>
+        <p>The generated file is <code>tests\generated\onboarding-petstore.spec.ts</code>. The audit log is <code>test-results\onboarding-workflow.jsonl</code>. Approval is tied to this selection and plan revision; changing the selection invalidates it.</p>
+        <div class="callout good"><strong>Generation sends no requests.</strong> You can inspect the generated TypeScript before deciding whether to run it.</div>
+      </div>
+    </section>
+
+    <section class="step" id="step-4">
+      <div class="number" aria-hidden="true">4</div>
+      <div>
+        <h2>Automate the approved read-only case</h2>
+        <p>The live Swagger contract declares the sample API key <code>special-key</code> for inventory. Supply it only to this public demo request, and use Node's Windows system certificate store if this machine's trusted TLS issuer is not in Node's default CA bundle. TLS verification stays enabled.</p>
+        <div class="command"><pre><code>$oldNodeOptions = $env:NODE_OPTIONS
+$oldPetstoreKey = $env:API_KEY_API_KEY
+try {
+  $env:NODE_OPTIONS = "--use-system-ca"
+  $env:API_KEY_API_KEY = "special-key"
+  $confirmations = "AUTHORIZED NON-PRODUCTION`nAUTHENTICATION CONFIGURED`nRUN APPROVED`n"
+  $confirmations | npx.cmd tsx src/cli.ts run --base-url https://petstore.swagger.io/v2 --file tests\generated\onboarding-petstore.spec.ts --results test-results\petstore-onboarding-results.json --audit test-results\petstore-onboarding-run.jsonl
+} finally {
+  $env:NODE_OPTIONS = $oldNodeOptions
+  $env:API_KEY_API_KEY = $oldPetstoreKey
+}</code></pre><button class="copy" type="button">Copy</button></div>
+        <p>The three confirmation lines above automate this tutorial example; when using it interactively, type each phrase yourself only after reviewing the target and approved plan.</p>
+        <ol>
+          <li>At the target prompt, type <code>AUTHORIZED NON-PRODUCTION</code> only for this public demo and read-only request.</li>
+          <li>At the authentication prompt, type <code>AUTHENTICATION CONFIGURED</code> to confirm the documented sample key is in use.</li>
+          <li>At the execution prompt, type <code>RUN APPROVED</code> to run the selected plan revision.</li>
+        </ol>
+        <p>The runner checks approval metadata, restricts the run to the generated test file, avoids automatic redirects, and enforces a time limit. It records a redacted JSON result and local audit events.</p>
+        <div class="callout warn">The Petstore demo may change, rate-limit requests, or be temporarily offline. A failed live assertion is evidence about this run—not proof that the generator is broken. Inspect the recorded status and test diagnostic. Never use the public demo key for another system.</div>
+      </div>
+    </section>
+
+    <section class="step" id="step-5">
+      <div class="number" aria-hidden="true">5</div>
+      <div>
+        <h2>Inspect the result and continue safely</h2>
+        <p>After the run, review:</p>
+        <ul>
+          <li><code>test-results\petstore-onboarding-results.json</code> — outcome, stable case ID, expected/actual status where available, and plan/spec/target fingerprints.</li>
+          <li><code>test-results\onboarding-workflow.jsonl</code> and <code>test-results\petstore-onboarding-run.jsonl</code> — local events for plan review/approval, target confirmation, and execution outcome.</li>
+          <li>The generated test file and console output — compare the API's behavior to the documented expectation.</li>
+        </ul>
+        <div class="callout good"><strong>Verified smoke-test shape:</strong> one case, <code>TC-GETINVENTORY-POS-200</code>, issues <code>GET /store/inventory</code> with the spec's demo API key and checks documented HTTP 200 plus the response contract.</div>
+        <h3>Apply the workflow to another spec</h3>
+        <p>Replace the sample spec path in <code>guide</code>, review every candidate and sample against your API, select only the intended cases, and approve. Before <code>run</code>, use a confirmed authorized non-production target and required environment-based credentials. Mutating cases need both the run option and a separate confirmation; keep them out of this Petstore example.</p>
+        <div class="command"><pre><code>npx.cmd tsx src/cli.ts guide --spec path\to\your-openapi.yaml --objective "Describe the testing goal"</code></pre><button class="copy" type="button">Copy</button></div>
+        <p>For validation without any network access, use <code>npm.cmd run typecheck</code>, <code>npm.cmd test</code>, and <code>npm.cmd run build</code>. The test suite uses local fixtures/mocks.</p>
+      </div>
+    </section>
+
+    <section class="intro">
+      <h2>What the agent does—and does not do</h2>
+      <p><strong>It does:</strong> parse generic Swagger 2.0/OpenAPI 3.x specs, derive explainable candidate tests, preserve evidence/provenance, require explicit plan approval, then separately confirm execution target and intent.</p>
+      <p><strong>It does not:</strong> infer undocumented behavior, guess safe negative inputs, run unapproved low-level generated files, choose an LLM/provider, or make execution safe against someone deliberately editing code. Treat generated tests as proposals that require human review.</p>
+      <p>See <a href="README.md">README</a>, <a href="BACKLOG.md">project backlog</a>, and <a href="docs/AGENT-CONTRACT.md">agent contract</a> for full behavior and limitations.</p>
+    </section>
+  </main>
+  <footer>OpenAPI Playwright Agent · Generic spec-driven workflow · Petstore used as an onboarding example only</footer>
+  <script>
+    document.querySelectorAll(".copy").forEach(button => {
+      button.addEventListener("click", async () => {
+        const text = button.parentElement.querySelector("code").textContent;
+        try {
+          await navigator.clipboard.writeText(text);
+          button.textContent = "Copied";
+          setTimeout(() => { button.textContent = "Copy"; }, 1200);
+        } catch {
+          button.textContent = "Select text";
+        }
+      });
+    });
+  </script>
+</body>
+</html>

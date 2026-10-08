@@ -6,6 +6,10 @@ A generic API test generation project. Its current foundation is a TypeScript CL
 
 Requires Node.js 20 or newer.
 
+## Step-by-step onboarding
+
+Open [ONBOARDING.html](./ONBOARDING.html) in a browser for a visual walkthrough. It downloads Swagger Petstore's live Swagger 2.0 contract, demonstrates case review and approval, then runs one read-only `GET /store/inventory` smoke test against the matching `/v2` API. The repository's OpenAPI 3.0 Petstore fixture is also referenced for generic-spec exploration, but its `/v1/pets` route does not match the live service. Mutating Petstore operations are deliberately excluded.
+
 ## Setup
 
 ```powershell
@@ -85,11 +89,11 @@ Only internal `$ref` references (those beginning with `#`) are resolved. Externa
 
 ## Project status
 
-The deterministic foundation is implemented and verified for its current fixture coverage. Node.js 24.21.0/npm 11.19.0 dependencies are installed; typecheck, build, and all 17 unit/integration tests pass. Phase 4 tests reject unapproved generated artifacts, check target and credentials before execution, require separate target/auth/execution/mutating approvals, and verify an authenticated read-only approved plan against a local mock API with plan-revision-bound results and audit events. No public or live service was called. Phases 1-4 are complete; Phase 4 is ready for PR on `feature/phase-4-authorized-execution`. Model/provider decisions remain deferred pending service-line guidance. See [the phased backlog](./BACKLOG.md) for current statuses and demo exit criteria.
+The deterministic foundation is implemented and verified for its current fixture coverage. Node.js 24.21.0/npm 11.19.0 dependencies are installed; typecheck, build, and all 17 unit/integration tests pass. Phase 4 tests reject unapproved generated artifacts, check target and credentials before execution, require separate target/auth/execution/mutating approvals, and verify an authenticated read-only approved plan against a local mock API with plan-revision-bound results and audit events. The [HTML onboarding guide](./ONBOARDING.html) demonstrates review and a read-only live Petstore smoke test. Verified on 2026-10-08 against Petstore's live Swagger 2.0 spec: `TC-GETINVENTORY-POS-200` passed at `https://petstore.swagger.io/v2/store/inventory`; no mutation requests were run. The separate bundled OpenAPI 3 sample uses `/v1/pets`, which returned 404 on the current live service, so the guide downloads the actual v2 spec for its live step. Phases 1-4 are complete and merged. Model/provider decisions remain deferred pending service-line guidance. See [the phased backlog](./BACKLOG.md) for current statuses and demo exit criteria.
 
 ## Implementation phases
 
-The work is organized into seven gated phases: **0)** deterministic foundation (complete for current verification scope), **1)** engine hardening (complete), **2)** provider-neutral MVP1 product/tool contract (complete and merged), **3)** deterministic guided CLI MVP1 (complete and merged), **4)** authorized API execution MVP2 (complete on feature branch; awaiting PR), **5)** optional model integration and agent quality (deferred pending service-line guidance), and **6)** demo readiness. Each phase has explicit dependencies and exit criteria in [BACKLOG.md](./BACKLOG.md); MVP1 can be built and demonstrated without a model provider.
+The work is organized into seven gated phases: **0)** deterministic foundation (complete for current verification scope), **1)** engine hardening (complete), **2)** provider-neutral MVP1 product/tool contract (complete and merged), **3)** deterministic guided CLI MVP1 (complete and merged), **4)** authorized API execution MVP2 (complete and merged), **5)** optional model integration and agent quality (deferred pending service-line guidance), and **6)** demo readiness. Each phase has explicit dependencies and exit criteria in [BACKLOG.md](./BACKLOG.md); MVP1 can be built and demonstrated without a model provider.
 
 ## Development
 

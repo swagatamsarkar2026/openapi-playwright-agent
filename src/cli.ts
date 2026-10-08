@@ -130,7 +130,7 @@ program.command("guide")
         const approval = await approvePlan(activeSession, activeSession.planRevision, activeSession.selectedCaseIds);
         const result = await generateApprovedPlan(activeSession, approval.token, options.out);
         console.log(`\nGenerated ${result.automatedCount} automated candidate(s) and ${result.manualReviewCount} manual-review case(s) to ${result.outputPath}.`);
-        console.log("No API requests were sent. Use the separate run command only after target and execution approval are implemented.");
+        console.log("No API requests were sent. Run the approved file separately only after confirming an authorized non-production target.");
         return;
       }
     } catch (error) {
