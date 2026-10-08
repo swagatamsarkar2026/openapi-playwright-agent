@@ -2,7 +2,7 @@
 
 A generic API test generation project. Its current foundation is a TypeScript CLI that turns Swagger 2.0 and OpenAPI 3.x (including 3.1) JSON or YAML specifications into a reviewable test plan and Playwright API tests. Petstore is a sample fixture only; operation, schema, and endpoint behavior is spec-driven.
 
-**Product goal:** evolve this foundation into an agentic application suitable for a service-line demonstration. The selected interaction surface is a conversational CLI. The agent should help a user understand an API spec, prepare and explain test scenarios, incorporate user review, generate Playwright tests, and present run results. The current repository is a deterministic scaffold, **not yet an LLM-powered or conversational agent application**. Track that work in [BACKLOG.md](./BACKLOG.md); model/provider and hosting choices remain open.
+**Product goal:** evolve this foundation into an application suitable for a service-line demonstration. MVP1 is a deterministic, provider-neutral guided CLI: users inspect a spec, review and approve generated cases, then generate Playwright tests from the approved plan. MVP1 will not use an LLM or send API requests. Model/provider and hosting choices are deferred until service-line guidance. See the [MVP1 product and tool contract](./docs/AGENT-CONTRACT.md) and [phased backlog](./BACKLOG.md).
 
 Requires Node.js 20 or newer.
 
@@ -38,7 +38,7 @@ The current scaffold has a three-command CLI workflow:
 
 ## Agentic application target
 
-The service-line demo target is a guided, explainable agent workflow rather than an unrestricted autonomous runner:
+The intended service-line demo is a guided, explainable workflow rather than an unrestricted autonomous runner. MVP1 implements the review-to-generation path deterministically; a model, if later approved, may assist only through the same bounded tool contract.
 
 1. Accept a spec and the user's test objective; clarify missing environment or safety details.
 2. Explain the operations and proposed test cases, including each case's inputs, input provenance, preconditions, steps, and expected results.
@@ -47,7 +47,7 @@ The service-line demo target is a guided, explainable agent workflow rather than
 5. Require explicit confirmation and an authorized non-production target before enabling state-changing API calls.
 6. Summarize pass/fail/skip results, evidence, and remaining ambiguities in user-readable output.
 
-Keep the OpenAPI parsing and Playwright execution deterministic and testable. An LLM may assist with user interaction, interpretation, and proposing additional cases, but it must not invent contract facts, credentials, or success criteria. The conversational CLI surface is selected; provider/model integration and deployment approach remain open decisions before implementing that layer.
+Keep OpenAPI parsing and test generation deterministic and testable. No model provider is selected or required for MVP1. Any later model may assist with interaction or propose cases, but it must not invent contract facts, credentials, or success criteria, and must not bypass user approval.
 
 The `analyze` command writes a detailed test plan. Each stable-ID case includes its type (positive, negative, or manual review), automation status, risk classification, preconditions, parameter/body samples and their source, numbered test steps with expected results, and assumptions or review notes. Each documented 2xx response becomes its own positive automation candidate with an exact status assertion; cases with review warnings are skipped when executed.
 
@@ -71,11 +71,11 @@ Only internal `$ref` references (those beginning with `#`) are resolved. Externa
 
 ## Project status
 
-The deterministic foundation is implemented and verified for its current fixture coverage. Node.js 24.21.0/npm 11.19.0 dependencies are installed; typecheck, 9 unit tests, build, generated-test TypeScript checking, and Playwright discovery pass. A local mocked API run verified failure diagnostics and API-key redaction; no live API requests have been run. Phase 1 is complete for its documented exit gate (VAL-04 through VAL-07). The agentic interaction/application layer and service-line demo experience remain backlog work, not implemented features. See [the phased backlog](./BACKLOG.md) for current statuses and demo exit criteria.
+The deterministic foundation is implemented and verified for its current fixture coverage. Node.js 24.21.0/npm 11.19.0 dependencies are installed; typecheck, 9 unit tests, build, generated-test TypeScript checking, and Playwright discovery pass. A local mocked API run verified failure diagnostics and API-key redaction; no live API requests have been run. Phase 1 is complete for its documented exit gate (VAL-04 through VAL-07). Phase 2 is in progress: the provider-neutral MVP1 product/tool contract is drafted for review. Guided CLI MVP1 is not implemented yet. Model/provider decisions are deferred pending service-line guidance. See [the phased backlog](./BACKLOG.md) for current statuses and demo exit criteria.
 
 ## Implementation phases
 
-The work is organized into seven gated phases: **0)** deterministic foundation (complete for current verification scope), **1)** engine hardening and broader tests (complete for its documented gate), **2)** agent product/tool contract, **3)** conversational CLI MVP, **4)** approval-gated generation and execution, **5)** results/audit/agent quality, and **6)** demo readiness. Each phase has explicit dependencies and exit criteria in [BACKLOG.md](./BACKLOG.md); later agent phases should not start until their prerequisites and safety decisions are complete.
+The work is organized into seven gated phases: **0)** deterministic foundation (complete for current verification scope), **1)** engine hardening (complete), **2)** provider-neutral MVP1 product/tool contract (in progress), **3)** deterministic guided CLI MVP1, **4)** authorized API execution MVP2, **5)** optional model integration and agent quality (deferred pending service-line guidance), and **6)** demo readiness. Each phase has explicit dependencies and exit criteria in [BACKLOG.md](./BACKLOG.md); MVP1 can be built and demonstrated without a model provider.
 
 ## Development
 
