@@ -1,10 +1,14 @@
 #!/usr/bin/env node
+import { randomUUID } from "node:crypto";
 import { Command } from "commander";
 import { createInterface } from "node:readline";
-import { resolve } from "node:path";
+import { relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import type { Writable } from "node:stream";
 import { approvePlan, createGuidedSession, createJsonlAuditSink, generateApprovedPlan, recordWorkflowCancellation, revisePlanSelection } from "./guided-workflow.js";
+import type { AuditSink } from "./guided-workflow.js";
+import { MAX_EXECUTION_DURATION_MS, readApprovedExecutionPlan, resolveGeneratedTestFile, validateAuthorizedTarget } from "./execution.js";
+import type { ApprovedExecutionPlan } from "./execution.js";
 import type { PlannedTestCase } from "./model.js";
 import { buildTestPlan } from "./openapi.js";
 import { writeGeneratedTests, writePlan } from "./generator.js";
@@ -143,22 +147,136 @@ program.command("guide")
   });
 
 program.command("run")
-  .description("Run generated API tests with Playwright.")
-  .option("--base-url <url>", "Override the API_BASE_URL for this run")
+  .description("Run a guided-approved Playwright plan against an explicitly authorized target.")
+  .requiredOption("--base-url <url>", "Authorized API target; HTTPS is required except for loopback")
+  .option("-f, --file <file>", "Guided-approved test file", "tests/generated/api.spec.ts")
   .option("--results <file>", "Machine-readable JSON results path", "test-results/api-results.json")
-  .option("--include-mutating", "Allow mutating tests in the generated test file", false)
-  .action(options => {
+  .option("--audit <file>", "Local JSONL workflow audit path", "test-results/guided-workflow.jsonl")
+  .option("--include-mutating", "Request separate approval for selected mutating tests", false)
+  .action(async options => {
+    const audit = createJsonlAuditSink(options.audit);
+    let testFile: string;
+    let executionPlan: ApprovedExecutionPlan;
+    try {
+      testFile = resolveGeneratedTestFile(options.file);
+      executionPlan = await readApprovedExecutionPlan(testFile);
+    } catch (error) {
+      await recordExecutionFailure(audit, undefined, "ExecutionPlanValidationError");
+      throw error;
+    }
+    if (executionPlan.runnableCaseIds.length === 0) {
+      await recordExecutionFailure(audit, executionPlan, "NoRunnableCases");
+      throw new Error("The approved plan has no automated, review-ready cases to execute.");
+    }
+    let target: ReturnType<typeof validateAuthorizedTarget>;
+    try {
+      target = validateAuthorizedTarget(options.baseUrl);
+    } catch (error) {
+      await recordExecutionFailure(audit, executionPlan, "TargetValidationError");
+      throw error;
+    }
+    const missingCredentialVariables = executionPlan.authenticationEnvironmentVariables
+      .filter(name => !process.env[name]?.trim());
+    if (missingCredentialVariables.length > 0) {
+      await recordExecutionFailure(audit, executionPlan, "CredentialConfigurationError");
+      throw new Error(`Required authentication environment variable(s) are not configured: ${missingCredentialVariables.join(", ")}.`);
+    }
+    const prompt = createPrompt(process.stdin, process.stdout, () => {});
     const env = { ...process.env };
-    if (options.baseUrl) env.API_BASE_URL = options.baseUrl;
+    env.API_BASE_URL = target.url;
     env.API_TEST_RESULTS = resolve(options.results);
-    if (options.includeMutating) env.INCLUDE_MUTATING = "true";
-    const result = spawnSync("npx", ["playwright", "test"], {
-      env,
-      stdio: "inherit",
-      shell: process.platform === "win32"
-    });
-    if (result.error) throw result.error;
-    process.exitCode = result.status ?? 1;
+    env.API_EXECUTION_APPROVAL = executionPlan.approvalBinding;
+    env.API_PLAN_ID = executionPlan.planId;
+    env.API_PLAN_REVISION = String(executionPlan.planRevision);
+    env.API_SPEC_FINGERPRINT = executionPlan.specFingerprint;
+    env.API_TARGET_FINGERPRINT = target.fingerprint;
+    env.INCLUDE_MUTATING = "false";
+    const auditEvent = async (
+      event: "target_approved" | "authentication_approved" | "authentication_not_required"
+        | "execution_approved" | "execution_started" | "execution_completed" | "cancelled",
+      outcome: "success" | "cancelled" | "failed",
+      resultCode?: number
+    ): Promise<void> => {
+      await audit({
+        timestamp: new Date().toISOString(),
+        workflowId: executionPlan.workflowId,
+        planId: executionPlan.planId,
+        planRevision: executionPlan.planRevision,
+        event,
+        caseIds: executionPlan.caseIds.map(caseId => redactSensitiveText(caseId)),
+        targetFingerprint: target.fingerprint,
+        outcome,
+        ...(resultCode === undefined ? {} : { resultCode })
+      });
+    };
+    try {
+      console.log(`Execution plan: ${executionPlan.planId}, revision ${executionPlan.planRevision}`);
+      console.log(`Approved cases: ${executionPlan.caseIds.length}; runnable: ${executionPlan.runnableCaseIds.length}; mutating: ${executionPlan.mutatingCaseIds.length}`);
+      console.log(`Target: ${target.url}`);
+      const targetConfirmation = (await prompt.question(
+        "Type AUTHORIZED NON-PRODUCTION to confirm this target is authorized and non-production: "
+      ) ?? "").trim();
+      if (targetConfirmation !== "AUTHORIZED NON-PRODUCTION") {
+        await auditEvent("cancelled", "cancelled");
+        console.log("Execution cancelled. No API requests were sent.");
+        return;
+      }
+      await auditEvent("target_approved", "success");
+
+      if (executionPlan.authenticationEnvironmentVariables.length > 0) {
+        console.log(`Authentication is required via: ${executionPlan.authenticationEnvironmentVariables.join(", ")}`);
+        const authenticationConfirmation = (await prompt.question(
+          "Type AUTHENTICATION CONFIGURED to confirm these environment credentials are intended for this target: "
+        ) ?? "").trim();
+        if (authenticationConfirmation !== "AUTHENTICATION CONFIGURED") {
+          await auditEvent("cancelled", "cancelled");
+          console.log("Execution cancelled. No API requests were sent.");
+          return;
+        }
+        await auditEvent("authentication_approved", "success");
+      } else {
+        console.log("The approved plan declares no authentication requirements.");
+        await auditEvent("authentication_not_required", "success");
+      }
+
+      const executionConfirmation = (await prompt.question(
+        "Type RUN APPROVED to authorize execution of this plan revision: "
+      ) ?? "").trim();
+      if (executionConfirmation !== "RUN APPROVED") {
+        await auditEvent("cancelled", "cancelled");
+        console.log("Execution cancelled. No API requests were sent.");
+        return;
+      }
+      if (options.includeMutating && executionPlan.mutatingCaseIds.length > 0) {
+        const mutationConfirmation = (await prompt.question(
+          "Type APPROVE MUTATING CALLS to authorize the selected state-changing cases: "
+        ) ?? "").trim();
+        if (mutationConfirmation !== "APPROVE MUTATING CALLS") {
+          await auditEvent("cancelled", "cancelled");
+          console.log("Mutating execution cancelled. No API requests were sent.");
+          return;
+        }
+        env.INCLUDE_MUTATING = "true";
+      }
+      await auditEvent("execution_approved", "success");
+      await auditEvent("execution_started", "success");
+
+      const runner = resolve("node_modules/@playwright/test/cli.js");
+      const testPath = relative(process.cwd(), testFile).replaceAll("\\", "/");
+      const result = spawnSync(process.execPath, [runner, "test", testPath], {
+        env,
+        stdio: "inherit",
+        timeout: MAX_EXECUTION_DURATION_MS
+      });
+      if (result.error) {
+        await auditEvent("execution_completed", "failed");
+        throw result.error;
+      }
+      await auditEvent("execution_completed", result.status === 0 ? "success" : "failed", result.status ?? 1);
+      process.exitCode = result.status ?? 1;
+    } finally {
+      prompt.close();
+    }
   });
 
 await program.parseAsync();
@@ -173,6 +291,7 @@ function printCase(testCase: PlannedTestCase): void {
       const value = redactSensitiveText(JSON.stringify(parameter.value) ?? String(parameter.value));
       console.log(`    ${parameter.in} ${parameter.name}=${value} (source: ${parameter.valueSource})`);
     }
+
   }
   if (testCase.body !== undefined) {
     console.log(`  Request body candidate: ${redactSensitiveText(JSON.stringify(testCase.body) ?? String(testCase.body))}`);
@@ -186,6 +305,22 @@ function printCase(testCase: PlannedTestCase): void {
     console.log(`  Evidence: SHA-256 ${evidence.specFingerprint}; JSON Pointer ${evidence.pointer}`);
   }
   for (const warning of testCase.warnings) console.log(`  Uncertainty/review: ${redactSensitiveText(warning)}`);
+}
+
+async function recordExecutionFailure(
+  audit: AuditSink,
+  plan: ApprovedExecutionPlan | undefined,
+  errorCategory: string
+): Promise<void> {
+  await audit({
+    timestamp: new Date().toISOString(),
+    workflowId: plan?.workflowId ?? randomUUID(),
+    ...(plan ? { planId: plan.planId, planRevision: plan.planRevision } : {}),
+    event: "tool_failed",
+    ...(plan ? { caseIds: plan.caseIds.map(caseId => redactSensitiveText(caseId)) } : {}),
+    outcome: "failed",
+    errorCategory
+  });
 }
 
 function createPrompt(

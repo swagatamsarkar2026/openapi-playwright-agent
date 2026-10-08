@@ -108,6 +108,19 @@ export default class ApiRunReporter implements Reporter {
     const results = {
       schemaVersion: 1,
       generatedAt: new Date().toISOString(),
+      ...(process.env.API_PLAN_ID
+        && Number.isSafeInteger(Number(process.env.API_PLAN_REVISION))
+        && process.env.API_SPEC_FINGERPRINT
+        && process.env.API_TARGET_FINGERPRINT
+        ? {
+            execution: {
+              planId: redactSensitiveText(process.env.API_PLAN_ID),
+              planRevision: Number(process.env.API_PLAN_REVISION),
+              specFingerprint: process.env.API_SPEC_FINGERPRINT,
+              targetFingerprint: process.env.API_TARGET_FINGERPRINT
+            }
+          }
+        : {}),
       summary: {
         total: this.records.length,
         passed: this.records.filter(record => record.outcome === "passed").length,

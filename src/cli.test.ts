@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { createServer } from "node:http";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -7,6 +8,7 @@ import test from "node:test";
 import { buildTestPlan } from "./openapi.js";
 import { writeGeneratedTests, writePlan } from "./generator.js";
 import { redactSensitiveText } from "./redaction.js";
+import { createExecutionPlanMetadata, generatedExecutionContentFingerprint, readApprovedExecutionPlan, resolveGeneratedTestFile, serializeExecutionPlanMarker, validateAuthorizedTarget } from "./execution.js";
 import { assertSafeOperationCount, assertSafeSpecDocument, assertSafeSpecSize, SPEC_LIMITS } from "./spec-safety.js";
 import { approvePlan, createGuidedSession, generateApprovedPlan, recordWorkflowCancellation, revisePlanSelection, type WorkflowEvent } from "./guided-workflow.js";
 
@@ -42,6 +44,7 @@ test("writes a plan and keeps mutating cases opted out by default", async () => 
     const generated = await readFile(testPath, "utf8");
     assert.match(generated, /test\.step/);
     assert.match(generated, /expect\(response\.status\(\)\)\.toBe\(testCase\.expectedStatus\)/);
+    assert.match(generated, /maxRedirects: 0/);
     assert.match(generated, /api-run-diagnostic\.json/);
     assert.match(generated, /actualStatus/);
     assert.match(generated, /manual-review/);
@@ -520,6 +523,239 @@ test("guided workflow surfaces audit sink failures", async () => {
   );
 });
 
+test("execution-plan metadata is integrity-checked and requires guided approval", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "openapi-execution-plan-"));
+  try {
+    const details = {
+      workflowId: "workflow-1",
+      planId: "plan-1",
+      planRevision: 2,
+      specFingerprint: "a".repeat(64),
+      caseIds: ["TC-READ-POS-200", "TC-WRITE-POS-201"],
+      runnableCaseIds: ["TC-READ-POS-200", "TC-WRITE-POS-201"],
+      mutatingCaseIds: ["TC-WRITE-POS-201"],
+      authenticationEnvironmentVariables: ["API_BEARER_TOKEN"]
+    };
+    const bindingSource = 'const executionApprovalBinding = "";\n';
+    const plan = createExecutionPlanMetadata(details, generatedExecutionContentFingerprint(bindingSource));
+    const path = join(directory, "approved.spec.ts");
+    await writeFile(path, approvedExecutionFixture(plan, bindingSource));
+    assert.deepEqual(await readApprovedExecutionPlan(path), plan);
+
+    await writeFile(path, approvedExecutionFixture({ ...plan, planRevision: 3 }, bindingSource));
+    await assert.rejects(readApprovedExecutionPlan(path), /valid approval metadata/);
+    await writeFile(path, approvedExecutionFixture(plan, `${bindingSource}const changed = true;\n`));
+    await assert.rejects(readApprovedExecutionPlan(path), /does not match the approved plan content/);
+    await writeGeneratedTests(await buildTestPlan(sampleSpec), path, false);
+    await assert.rejects(readApprovedExecutionPlan(path), /guide command first/);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("execution targets and generated test paths enforce local safety constraints", () => {
+  assert.equal(validateAuthorizedTarget("https://api.example.test/v1").url, "https://api.example.test/v1");
+  assert.equal(validateAuthorizedTarget("http://127.0.0.1:8080").url, "http://127.0.0.1:8080/");
+  assert.throws(() => validateAuthorizedTarget("http://api.example.test"), /must use HTTPS/);
+  assert.throws(() => validateAuthorizedTarget("https://user:secret@api.example.test"), /credentials/);
+  assert.throws(() => validateAuthorizedTarget("https://api.example.test?token=secret"), /query string/);
+  assert.throws(() => validateAuthorizedTarget("file:///etc/passwd"), /HTTP and HTTPS/);
+  assert.equal(
+    resolveGeneratedTestFile("tests/generated/api.spec.ts"),
+    resolve("tests/generated/api.spec.ts")
+  );
+  assert.throws(() => resolveGeneratedTestFile("tests/generated/../../src/cli.test.ts"), /inside tests\/generated/);
+  assert.throws(() => resolveGeneratedTestFile("tests/generated/api.ts"), /.spec.ts/);
+});
+
+test("run rejects unapproved artifacts and requires separate mutating approval", async () => {
+  const directory = await mkdtemp(join(resolve("tests/generated"), "phase4-run-"));
+  try {
+    const unapprovedFile = join(directory, "unapproved.spec.ts");
+    const auditPath = join(directory, "run.jsonl");
+    const resultsPath = join(directory, "results.json");
+    await writeGeneratedTests(await buildTestPlan(sampleSpec), unapprovedFile, true);
+    const unapprovedResult = await runCli("run", [
+      "--base-url", "https://api.example.test",
+      "--file", unapprovedFile,
+      "--audit", auditPath,
+      "--results", resultsPath
+    ], "");
+    assert.notEqual(unapprovedResult.code, 0);
+    assert.match(unapprovedResult.stderr, /guide command first/);
+    await assert.rejects(readFile(resultsPath, "utf8"), { code: "ENOENT" });
+
+    const session = await createGuidedSession(sampleSpec, "Review the state-changing case");
+    const allCases = session.plan.operations.flatMap(operation => operation.testCases);
+    const manualCase = allCases.find(testCase => testCase.execution === "manual-review");
+    assert.ok(manualCase);
+    assert.equal(await revisePlanSelection(session, session.planRevision, [manualCase.id]), 2);
+    const manualApproval = await approvePlan(session, session.planRevision, [manualCase.id]);
+    const manualFile = join(directory, "manual-only.spec.ts");
+    await generateApprovedPlan(session, manualApproval.token, manualFile);
+    const manualAuditPath = join(directory, "manual-audit.jsonl");
+    const manualResult = await runCli("run", [
+      "--base-url", "https://api.example.test",
+      "--file", manualFile,
+      "--audit", manualAuditPath
+    ], "");
+    assert.notEqual(manualResult.code, 0);
+    assert.match(manualResult.stderr, /no automated, review-ready cases/);
+    const manualEvents = (await readFile(manualAuditPath, "utf8")).trim().split("\n")
+      .map(line => JSON.parse(line) as WorkflowEvent);
+    assert.equal(manualEvents.at(-1)?.errorCategory, "NoRunnableCases");
+
+    const mutationSession = await createGuidedSession(sampleSpec, "Review the state-changing case");
+    const mutatingCase = mutationSession.plan.operations.flatMap(operation => operation.testCases).find(testCase => testCase.mutating);
+    assert.ok(mutatingCase);
+    assert.equal(await revisePlanSelection(mutationSession, mutationSession.planRevision, [mutatingCase.id]), 2);
+    const approval = await approvePlan(mutationSession, mutationSession.planRevision, [mutatingCase.id]);
+    const approvedFile = join(directory, "approved.spec.ts");
+    await generateApprovedPlan(mutationSession, approval.token, approvedFile);
+    const pendingMutationResult = await runCli("run", [
+      "--base-url", "https://api.example.test",
+      "--file", approvedFile,
+      "--audit", auditPath,
+      "--results", resultsPath,
+      "--include-mutating"
+    ], "AUTHORIZED NON-PRODUCTION\nRUN APPROVED\n");
+    assert.equal(pendingMutationResult.code, 0, pendingMutationResult.stderr);
+    assert.match(pendingMutationResult.stdout, /APPROVE MUTATING CALLS/);
+    assert.doesNotMatch(pendingMutationResult.stdout, /Execution started/);
+    await assert.rejects(readFile(resultsPath, "utf8"), { code: "ENOENT" });
+    const events = (await readFile(auditPath, "utf8")).trim().split("\n")
+      .map(line => JSON.parse(line) as WorkflowEvent);
+    assert.equal(events.filter(event => event.event === "target_approved").length, 1);
+    assert.equal(events.filter(event => event.event === "execution_approved").length, 0);
+    assert.equal(events.at(-1)?.event, "cancelled");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("run checks required credential environment variables without revealing values", async () => {
+  const directory = await mkdtemp(join(resolve("tests/generated"), "phase4-auth-check-"));
+  try {
+    const bindingSource = 'const executionApprovalBinding = "";\n';
+    const plan = createExecutionPlanMetadata({
+      workflowId: "workflow-auth",
+      planId: "plan-auth",
+      planRevision: 1,
+      specFingerprint: "b".repeat(64),
+      caseIds: ["TC-AUTH-POS-200"],
+      runnableCaseIds: ["TC-AUTH-POS-200"],
+      mutatingCaseIds: [],
+      authenticationEnvironmentVariables: ["API_BEARER_TOKEN"]
+    }, generatedExecutionContentFingerprint(bindingSource));
+    const testFile = join(directory, "auth.spec.ts");
+    const auditPath = join(directory, "audit.jsonl");
+    await writeFile(testFile, approvedExecutionFixture(plan, bindingSource));
+    const result = await runCli("run", [
+      "--base-url", "https://api.example.test",
+      "--file", testFile,
+      "--audit", auditPath
+    ], "", { API_BEARER_TOKEN: "" });
+    assert.notEqual(result.code, 0);
+    assert.match(result.stderr, /API_BEARER_TOKEN/);
+    assert.doesNotMatch(result.stderr, /secret-value/);
+    const events = (await readFile(auditPath, "utf8")).trim().split("\n")
+      .map(line => JSON.parse(line) as WorkflowEvent);
+    assert.equal(events.at(-1)?.event, "tool_failed");
+    assert.equal(events.at(-1)?.errorCategory, "CredentialConfigurationError");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("run executes only after approvals and binds results to the approved plan", async () => {
+  const directory = await mkdtemp(join(resolve("tests/generated"), "phase4-approved-run-"));
+  const requests: string[] = [];
+  const authorizationHeaders: Array<string | undefined> = [];
+  const server = createServer((request, response) => {
+    requests.push(`${request.method} ${request.url}`);
+    authorizationHeaders.push(request.headers.authorization);
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end(JSON.stringify([{ id: 42, name: "Local test pet" }]));
+  });
+  try {
+    await new Promise<void>(resolveListen => server.listen(0, "127.0.0.1", resolveListen));
+    const address = server.address();
+    assert.ok(address && typeof address !== "string");
+    const authenticatedSpec = join(directory, "authenticated.yaml");
+    const originalSpec = (await readFile(sampleSpec, "utf8")).replace(/\r\n/g, "\n");
+    const authenticatedSpecText = originalSpec
+      .replace("paths:\n", "security:\n  - bearerAuth: []\npaths:\n")
+      .replace("components:\n  schemas:", "components:\n  securitySchemes:\n    bearerAuth:\n      type: http\n      scheme: bearer\n  schemas:");
+    assert.notEqual(authenticatedSpecText, originalSpec);
+    await writeFile(authenticatedSpec, authenticatedSpecText);
+    const session = await createGuidedSession(authenticatedSpec, "Read-only isolated runner verification");
+    const readOnlyCase = session.plan.operations.flatMap(operation => operation.testCases).find(testCase => !testCase.mutating);
+    assert.ok(readOnlyCase);
+    assert.equal(await revisePlanSelection(session, session.planRevision, [readOnlyCase.id]), 2);
+    const approval = await approvePlan(session, session.planRevision, [readOnlyCase.id]);
+    const testFile = join(directory, "approved.spec.ts");
+    await generateApprovedPlan(session, approval.token, testFile);
+
+    const deniedAuditPath = join(directory, "denied-audit.jsonl");
+    const deniedResultsPath = join(directory, "denied-results.json");
+    const deniedResult = await runCli("run", [
+      "--base-url", `http://127.0.0.1:${address.port}`,
+      "--file", testFile,
+      "--audit", deniedAuditPath,
+      "--results", deniedResultsPath
+    ], "NO\n", { API_BEARER_TOKEN: "local-only-test-token" });
+    assert.equal(deniedResult.code, 0, deniedResult.stderr);
+    assert.deepEqual(requests, []);
+    const deniedEvents = (await readFile(deniedAuditPath, "utf8")).trim().split("\n")
+      .map(line => JSON.parse(line) as WorkflowEvent);
+    assert.equal(deniedEvents.at(-1)?.event, "cancelled");
+    await assert.rejects(readFile(deniedResultsPath, "utf8"), { code: "ENOENT" });
+
+    const auditPath = join(directory, "audit.jsonl");
+    const resultsPath = join(directory, "results.json");
+    const runResult = await runCli("run", [
+      "--base-url", `http://127.0.0.1:${address.port}`,
+      "--file", testFile,
+      "--audit", auditPath,
+      "--results", resultsPath
+    ], "AUTHORIZED NON-PRODUCTION\nAUTHENTICATION CONFIGURED\nRUN APPROVED\n", {
+      API_BEARER_TOKEN: "local-only-test-token"
+    });
+    assert.equal(runResult.code, 0, `${runResult.stderr}\n${runResult.stdout}`);
+    assert.match(runResult.stdout, /PASSED/);
+    assert.deepEqual(requests, ["GET /pets?limit=1"]);
+    assert.deepEqual(authorizationHeaders, ["Bearer local-only-test-token"]);
+
+    const results = JSON.parse(await readFile(resultsPath, "utf8")) as {
+      execution: { planId: string; planRevision: number; specFingerprint: string; targetFingerprint: string };
+      results: Array<{ caseId: string }>;
+    };
+    assert.equal(results.execution.planId, session.planId);
+    assert.equal(results.execution.planRevision, 2);
+    assert.equal(results.execution.specFingerprint, session.plan.specFingerprint);
+    assert.match(results.execution.targetFingerprint, /^[\da-f]{64}$/);
+    assert.deepEqual(results.results.map(result => result.caseId), [readOnlyCase.id]);
+    assert.doesNotMatch(JSON.stringify(results), /local-only-test-token/);
+    assert.doesNotMatch(runResult.stdout + runResult.stderr, /local-only-test-token/);
+    const auditEvents = (await readFile(auditPath, "utf8")).trim().split("\n")
+      .map(line => JSON.parse(line) as WorkflowEvent);
+    assert.deepEqual(auditEvents.map(event => event.event), [
+      "target_approved",
+      "authentication_approved",
+      "execution_approved",
+      "execution_started",
+      "execution_completed"
+    ]);
+    assert.ok(auditEvents.every(event => event.planRevision === 2 && event.planId === session.planId));
+    assert.doesNotMatch(JSON.stringify(auditEvents), /local-only-test-token/);
+  } finally {
+    await new Promise<void>((resolveClose, rejectClose) => {
+      server.close(error => error ? rejectClose(error) : resolveClose());
+    });
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("guided CLI generates only explicitly approved cases and audits cancellation", async () => {
   const directory = await mkdtemp(join(tmpdir(), "openapi-guided-cli-"));
   try {
@@ -573,10 +809,20 @@ test("guided CLI generates only explicitly approved cases and audits cancellatio
 });
 
 function runGuidedCli(args: string[], input: string): Promise<{ code: number | null; stdout: string; stderr: string }> {
+  return runCli("guide", args, input);
+}
+
+function runCli(
+  command: string,
+  args: string[],
+  input: string,
+  environment?: NodeJS.ProcessEnv
+): Promise<{ code: number | null; stdout: string; stderr: string }> {
   return new Promise((resolveRun, reject) => {
-    const child = spawn(process.execPath, [resolve("node_modules/tsx/dist/cli.mjs"), "src/cli.ts", "guide", ...args], {
+    const child = spawn(process.execPath, [resolve("node_modules/tsx/dist/cli.mjs"), "src/cli.ts", command, ...args], {
       cwd: process.cwd(),
-      stdio: ["pipe", "pipe", "pipe"]
+      stdio: ["pipe", "pipe", "pipe"],
+      ...(environment ? { env: { ...process.env, ...environment } } : {})
     });
     let stdout = "";
     let stderr = "";
@@ -586,4 +832,15 @@ function runGuidedCli(args: string[], input: string): Promise<{ code: number | n
     child.on("close", code => resolveRun({ code, stdout, stderr }));
     child.stdin.end(input);
   });
+}
+
+function approvedExecutionFixture(
+  plan: ReturnType<typeof createExecutionPlanMetadata>,
+  bindingSource: string
+): string {
+  const boundSource = bindingSource.replace(
+    'const executionApprovalBinding = "";',
+    `const executionApprovalBinding = ${JSON.stringify(plan.approvalBinding)};`
+  );
+  return `${serializeExecutionPlanMarker(plan)}\n${boundSource}`;
 }

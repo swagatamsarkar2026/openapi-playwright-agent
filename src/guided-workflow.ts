@@ -5,6 +5,7 @@ import type { PlannedTestCase, TestPlan } from "./model.js";
 import { writeGeneratedTests } from "./generator.js";
 import { buildTestPlan } from "./openapi.js";
 import { redactSensitiveText } from "./redaction.js";
+import { requiredAuthenticationEnvironmentVariables } from "./execution.js";
 
 export type WorkflowEventType =
   | "spec_inspected"
@@ -13,6 +14,12 @@ export type WorkflowEventType =
   | "plan_approved"
   | "approval_invalidated"
   | "tests_generated"
+  | "target_approved"
+  | "authentication_approved"
+  | "authentication_not_required"
+  | "execution_approved"
+  | "execution_started"
+  | "execution_completed"
   | "cancelled"
   | "tool_failed";
 
@@ -23,7 +30,9 @@ export interface WorkflowEvent {
   planRevision?: number;
   event: WorkflowEventType;
   caseIds?: string[];
+  targetFingerprint?: string;
   outcome: "success" | "cancelled" | "failed";
+  resultCode?: number;
   errorCategory?: string;
 }
 
@@ -218,7 +227,18 @@ export async function generateApprovedPlan(
   const cases: PlannedTestCase[] = plan.operations.flatMap(operation => operation.testCases);
   const resolvedOutputPath = resolve(outputPath);
   try {
-    await writeGeneratedTests(plan, resolvedOutputPath, false);
+    const executableCases = cases.filter(testCase => testCase.execution === "automated" && testCase.warnings.length === 0);
+    const executionPlan = {
+      workflowId: session.workflowId,
+      planId: session.planId,
+      planRevision: session.planRevision,
+      specFingerprint: plan.specFingerprint,
+      caseIds: cases.map(testCase => testCase.id),
+      runnableCaseIds: executableCases.map(testCase => testCase.id),
+      mutatingCaseIds: executableCases.filter(testCase => testCase.mutating).map(testCase => testCase.id),
+      authenticationEnvironmentVariables: requiredAuthenticationEnvironmentVariables(executableCases)
+    };
+    await writeGeneratedTests(plan, resolvedOutputPath, true, executionPlan);
   } catch (error) {
     await recordEvent(session, "tool_failed", "failed", session.selectedCaseIds, "OutputWriteError");
     throw error;
