@@ -6,7 +6,7 @@ function testSource(plan: TestPlan, includeMutating: boolean): string {
   const serialized = JSON.stringify(plan.operations.flatMap(operation => operation.testCases), null, 2);
   const baseUrl = plan.baseUrl ? JSON.stringify(plan.baseUrl) : "undefined";
   return `import { test, expect } from "@playwright/test";
-import type { APIResponse } from "@playwright/test";
+import type { APIResponse, TestInfo } from "@playwright/test";
 
 type GeneratedCase = {
   id: string;
@@ -152,8 +152,31 @@ function requiredEnv(name: string): string {
   return value;
 }
 
+async function attachDiagnostic(
+  testInfo: TestInfo,
+  testCase: GeneratedCase,
+  stepKind: string,
+  code: string,
+  message: string,
+  actualStatus?: number
+): Promise<void> {
+  await testInfo.attach("api-run-diagnostic.json", {
+    body: Buffer.from(JSON.stringify({
+      caseId: testCase.id,
+      method: testCase.method.toUpperCase(),
+      pathTemplate: testCase.path,
+      stepKind,
+      ...(testCase.expectedStatus === undefined ? {} : { expectedStatus: testCase.expectedStatus }),
+      ...(actualStatus === undefined ? {} : { actualStatus }),
+      code,
+      message
+    })),
+    contentType: "application/json"
+  });
+}
+
 for (const testCase of cases) {
-  test(\`\${testCase.id}: \${testCase.title}\`, async ({ request }) => {
+  test(\`\${testCase.id}: \${testCase.title}\`, async ({ request }, testInfo) => {
     test.skip(testCase.execution !== "automated", testCase.warnings.join(" ") || "This case requires review before automation.");
     test.skip(testCase.warnings.length > 0, testCase.warnings.join(" "));
     test.skip(testCase.mutating && !includeMutating, "Mutating operation excluded. Regenerate with --include-mutating after reviewing its effects.");
@@ -162,75 +185,113 @@ for (const testCase of cases) {
     const headers: Record<string, string> = {};
     const cookies: string[] = [];
     let response: APIResponse | undefined;
+    let activeStepKind = "test-setup";
 
-    for (const [index, step] of testCase.steps.entries()) {
-      await test.step(\`\${index + 1}. \${step.action}\`, async () => {
-        if (step.kind === "prepare-url") {
-          const baseUrl = process.env.API_BASE_URL ?? defaultBaseUrl;
-          if (!baseUrl) throw new Error("No server URL found in the spec. Set API_BASE_URL before running tests.");
-          const resolvedPath = resolvePath(testCase.path, testCase.parameters);
-          const relativePath = resolvedPath.startsWith("/") ? resolvedPath.slice(1) : resolvedPath;
-          url = new URL(relativePath, baseUrl.endsWith("/") ? baseUrl : \`\${baseUrl}/\`);
-          for (const parameter of testCase.parameters) {
-            if (parameter.in !== "query") continue;
-            for (const [name, value] of serializeQueryParameter(parameter)) url.searchParams.append(name, value);
-          }
-        } else if (step.kind === "prepare-headers") {
-          for (const parameter of testCase.parameters) {
-            if (parameter.in === "header") headers[parameter.name] = serializeHeaderValue(parameter);
-          }
-          for (const credential of testCase.security) {
-            const suffix = credential.name.replace(/[^a-zA-Z0-9]/g, "_").toUpperCase();
-            if (credential.type === "bearer") {
-              headers.authorization = ["Bearer", requiredEnv("API_BEARER_TOKEN")].join(" ");
-            } else if (credential.type === "oauth2") {
-              headers.authorization = ["Bearer", requiredEnv("API_OAUTH_TOKEN")].join(" ");
-            } else if (credential.type === "basic") {
-              const username = requiredEnv("API_USERNAME");
-              const password = requiredEnv("API_PASSWORD");
-              headers.authorization = ["Basic", Buffer.from(\`\${username}:\${password}\`).toString("base64")].join(" ");
-            } else if (credential.type === "apiKey") {
-              const value = requiredEnv(\`API_KEY_\${suffix}\`);
-              if (credential.parameterIn === "header") headers[credential.parameterName] = value;
-              else if (credential.parameterIn === "query") {
-                if (!url) throw new Error("Request URL must be prepared before adding query authentication.");
-                url.searchParams.append(credential.parameterName, value);
-              } else if (credential.parameterIn === "cookie") {
-                cookies.push(\`\${credential.parameterName}=\${value}\`);
+    try {
+      for (const [index, step] of testCase.steps.entries()) {
+        activeStepKind = step.kind;
+        await test.step(\`\${index + 1}. \${step.action}\`, async () => {
+          if (step.kind === "prepare-url") {
+            const baseUrl = process.env.API_BASE_URL ?? defaultBaseUrl;
+            if (!baseUrl) throw new Error("No server URL found in the spec. Set API_BASE_URL before running tests.");
+            const resolvedPath = resolvePath(testCase.path, testCase.parameters);
+            const relativePath = resolvedPath.startsWith("/") ? resolvedPath.slice(1) : resolvedPath;
+            url = new URL(relativePath, baseUrl.endsWith("/") ? baseUrl : \`\${baseUrl}/\`);
+            for (const parameter of testCase.parameters) {
+              if (parameter.in !== "query") continue;
+              for (const [name, value] of serializeQueryParameter(parameter)) url.searchParams.append(name, value);
+            }
+          } else if (step.kind === "prepare-headers") {
+            for (const parameter of testCase.parameters) {
+              if (parameter.in === "header") headers[parameter.name] = serializeHeaderValue(parameter);
+            }
+            for (const credential of testCase.security) {
+              const suffix = credential.name.replace(/[^a-zA-Z0-9]/g, "_").toUpperCase();
+              if (credential.type === "bearer") {
+                headers.authorization = ["Bearer", requiredEnv("API_BEARER_TOKEN")].join(" ");
+              } else if (credential.type === "oauth2") {
+                headers.authorization = ["Bearer", requiredEnv("API_OAUTH_TOKEN")].join(" ");
+              } else if (credential.type === "basic") {
+                const username = requiredEnv("API_USERNAME");
+                const password = requiredEnv("API_PASSWORD");
+                headers.authorization = ["Basic", Buffer.from(\`\${username}:\${password}\`).toString("base64")].join(" ");
+              } else if (credential.type === "apiKey") {
+                const value = requiredEnv(\`API_KEY_\${suffix}\`);
+                if (credential.parameterIn === "header") headers[credential.parameterName] = value;
+                else if (credential.parameterIn === "query") {
+                  if (!url) throw new Error("Request URL must be prepared before adding query authentication.");
+                  url.searchParams.append(credential.parameterName, value);
+                } else if (credential.parameterIn === "cookie") {
+                  cookies.push(\`\${credential.parameterName}=\${value}\`);
+                }
               }
             }
-          }
-          if (cookies.length > 0) headers.cookie = cookies.join("; ");
-          if (testCase.bodyContentType) headers["content-type"] = testCase.bodyContentType;
-        } else if (step.kind === "send-request") {
-          if (!url) throw new Error("Request URL was not prepared.");
-          response = await request.fetch(url.toString(), {
-            method: testCase.method.toUpperCase(),
-            headers,
-            ...(testCase.body === undefined ? {} : { data: JSON.stringify(testCase.body) })
-          });
-        } else if (step.kind === "assert-status") {
-          if (!response || testCase.expectedStatus === undefined) throw new Error("Response status cannot be checked.");
-          expect(response.status()).toBe(testCase.expectedStatus);
-        } else if (step.kind === "assert-content-type") {
-          if (!response || !testCase.responseExpectation?.contentType) throw new Error("Response content type cannot be checked.");
-          expect(response.headers()["content-type"]).toContain(testCase.responseExpectation.contentType);
-        } else if (step.kind === "assert-response-schema") {
-          if (!response || !testCase.responseExpectation) throw new Error("Response schema cannot be checked.");
-          const expectation = testCase.responseExpectation;
-          const payload: unknown = await response.json();
-          if (expectation.schema) assertResponseSchema(payload, expectation.schema);
-          for (const name of expectation.requiredProperties) expect(payload).toHaveProperty(name);
-          if (expectation.arrayItemRequiredProperties.length > 0) {
-            expect(Array.isArray(payload)).toBe(true);
-            for (const item of payload as unknown[]) {
-              for (const name of expectation.arrayItemRequiredProperties) expect(item).toHaveProperty(name);
+            if (cookies.length > 0) headers.cookie = cookies.join("; ");
+            if (testCase.bodyContentType) headers["content-type"] = testCase.bodyContentType;
+          } else if (step.kind === "send-request") {
+            if (!url) throw new Error("Request URL was not prepared.");
+            response = await request.fetch(url.toString(), {
+              method: testCase.method.toUpperCase(),
+              headers,
+              ...(testCase.body === undefined ? {} : { data: JSON.stringify(testCase.body) })
+            });
+          } else if (step.kind === "assert-status") {
+            if (!response || testCase.expectedStatus === undefined) throw new Error("Response status cannot be checked.");
+            expect(response.status()).toBe(testCase.expectedStatus);
+          } else if (step.kind === "assert-content-type") {
+            if (!response || !testCase.responseExpectation?.contentType) throw new Error("Response content type cannot be checked.");
+            expect(response.headers()["content-type"]).toContain(testCase.responseExpectation.contentType);
+          } else if (step.kind === "assert-response-schema") {
+            if (!response || !testCase.responseExpectation) throw new Error("Response schema cannot be checked.");
+            const responseSize = Number(response.headers()["content-length"]);
+            if (Number.isFinite(responseSize) && responseSize > 5 * 1024 * 1024) {
+              throw new Error("Response Content-Length exceeds the configured JSON assertion limit.");
             }
+            const expectation = testCase.responseExpectation;
+            const payload: unknown = await response.json();
+            if (expectation.schema) assertResponseSchema(payload, expectation.schema);
+            for (const name of expectation.requiredProperties) expect(payload).toHaveProperty(name);
+            if (expectation.arrayItemRequiredProperties.length > 0) {
+              expect(Array.isArray(payload)).toBe(true);
+              for (const item of payload as unknown[]) {
+                for (const name of expectation.arrayItemRequiredProperties) expect(item).toHaveProperty(name);
+              }
+            }
+          } else {
+            throw new Error(\`Unsupported automated test step: \${step.kind}\`);
           }
-        } else {
-          throw new Error(\`Unsupported automated test step: \${step.kind}\`);
-        }
-      });
+        });
+      }
+      await attachDiagnostic(testInfo, testCase, activeStepKind, "passed", "API test passed.", response?.status());
+    } catch (error) {
+      const actualStatus = response?.status();
+      const isStatusMismatch = activeStepKind === "assert-status"
+        && actualStatus !== undefined
+        && testCase.expectedStatus !== undefined
+        && actualStatus !== testCase.expectedStatus;
+      const isMissingCredential = activeStepKind === "prepare-headers"
+        && error instanceof Error
+        && error.message.startsWith("Missing required authentication environment variable:");
+      const code = isStatusMismatch
+        ? "status-mismatch"
+        : isMissingCredential
+          ? "missing-credentials"
+          : activeStepKind === "send-request"
+            ? "request-failed"
+            : activeStepKind === "assert-response-schema" && error instanceof Error && error.message.includes("Content-Length")
+              ? "response-too-large"
+              : "assertion-failed";
+      const message = isStatusMismatch
+        ? \`Expected HTTP \${testCase.expectedStatus}; received HTTP \${actualStatus}.\`
+        : isMissingCredential
+          ? "A required authentication environment variable is not set."
+          : code === "request-failed"
+            ? "No HTTP response was received; check the authorized target and network/TLS settings."
+            : code === "response-too-large"
+              ? "Response Content-Length exceeds the 5 MiB JSON assertion limit."
+              : \`The API test failed during the \${activeStepKind} step.\`;
+      await attachDiagnostic(testInfo, testCase, activeStepKind, code, message, actualStatus);
+      throw new Error(message);
     }
   });
 }

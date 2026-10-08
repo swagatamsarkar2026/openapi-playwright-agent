@@ -46,10 +46,12 @@ program.command("generate")
 program.command("run")
   .description("Run generated API tests with Playwright.")
   .option("--base-url <url>", "Override the API_BASE_URL for this run")
+  .option("--results <file>", "Machine-readable JSON results path", "test-results/api-results.json")
   .option("--include-mutating", "Allow mutating tests in the generated test file", false)
   .action(options => {
     const env = { ...process.env };
     if (options.baseUrl) env.API_BASE_URL = options.baseUrl;
+    env.API_TEST_RESULTS = resolve(options.results);
     if (options.includeMutating) env.INCLUDE_MUTATING = "true";
     const result = spawnSync("npx", ["playwright", "test"], {
       env,

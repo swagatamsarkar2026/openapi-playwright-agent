@@ -5,6 +5,8 @@ import { join, resolve } from "node:path";
 import test from "node:test";
 import { buildTestPlan } from "./openapi.js";
 import { writeGeneratedTests, writePlan } from "./generator.js";
+import { redactSensitiveText } from "./redaction.js";
+import { assertSafeOperationCount, assertSafeSpecDocument, assertSafeSpecSize, SPEC_LIMITS } from "./spec-safety.js";
 
 const sampleSpec = resolve("examples/petstore/openapi.yaml");
 
@@ -38,6 +40,8 @@ test("writes a plan and keeps mutating cases opted out by default", async () => 
     const generated = await readFile(testPath, "utf8");
     assert.match(generated, /test\.step/);
     assert.match(generated, /expect\(response\.status\(\)\)\.toBe\(testCase\.expectedStatus\)/);
+    assert.match(generated, /api-run-diagnostic\.json/);
+    assert.match(generated, /actualStatus/);
     assert.match(generated, /manual-review/);
     assert.match(await readFile(planPath, "utf8"), /Test steps/);
     assert.match(await readFile(planPath, "utf8"), /source: schema-derived numeric sample/);
@@ -378,4 +382,66 @@ paths:
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+test("rejects external references and enforces specification resource limits", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "openapi-safety-"));
+  try {
+    const remoteSpecPath = join(directory, "remote-ref.yaml");
+    const localSpecPath = join(directory, "local-ref.yaml");
+    const baseSpec = `openapi: 3.0.3
+info:
+  title: External reference API
+  version: "1.0"
+paths:
+  /health:
+    get:
+      responses:
+        "200":
+          $ref: REFERENCE
+`;
+    await writeFile(remoteSpecPath, baseSpec.replace("REFERENCE", "https://example.test/response.yaml"));
+    await writeFile(localSpecPath, baseSpec.replace("REFERENCE", "./response.yaml"));
+    await assert.rejects(buildTestPlan(remoteSpecPath), /External \$ref values are disabled/);
+    await assert.rejects(buildTestPlan(localSpecPath), /External \$ref values are disabled/);
+    assert.doesNotThrow(() => assertSafeSpecSize(SPEC_LIMITS.bytes));
+    assert.throws(() => assertSafeSpecSize(SPEC_LIMITS.bytes + 1), /input limit/);
+
+    const depthBoundary: Record<string, unknown> = {};
+    let boundaryCursor = depthBoundary;
+    for (let index = 0; index < SPEC_LIMITS.depth; index += 1) {
+      const child: Record<string, unknown> = {};
+      boundaryCursor.child = child;
+      boundaryCursor = child;
+    }
+    assert.doesNotThrow(() => assertSafeSpecDocument(depthBoundary));
+    const deeplyNested: Record<string, unknown> = {};
+    let current = deeplyNested;
+    for (let index = 0; index < SPEC_LIMITS.depth + 1; index += 1) {
+      const child: Record<string, unknown> = {};
+      current.child = child;
+      current = child;
+    }
+    assert.throws(() => assertSafeSpecDocument(deeplyNested), /nesting limit/);
+
+    const referenceBoundary = Array.from({ length: SPEC_LIMITS.references }, () => ({ $ref: "#/components/schemas/Item" }));
+    assert.doesNotThrow(() => assertSafeSpecDocument(referenceBoundary));
+    referenceBoundary.push({ $ref: "#/components/schemas/Overflow" });
+    assert.throws(() => assertSafeSpecDocument(referenceBoundary), /reference-count limit/);
+
+    assert.doesNotThrow(() => assertSafeSpecDocument(Array(SPEC_LIMITS.documentNodes - 1).fill(null)));
+    assert.throws(() => assertSafeSpecDocument(Array(SPEC_LIMITS.documentNodes).fill(null)), /complexity limit/);
+    assert.doesNotThrow(() => assertSafeOperationCount(SPEC_LIMITS.operations));
+    assert.throws(() => assertSafeOperationCount(SPEC_LIMITS.operations + 1), /operation limit/);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("redacts configured credentials and credential-shaped values", () => {
+  assert.equal(
+    redactSensitiveText("Authorization: Bearer abc123 api_key=xyz987", ["abc123"]),
+    "Authorization: [REDACTED] [REDACTED] api_key=[REDACTED]"
+  );
+  assert.equal(redactSensitiveText("failed value", ["failed"]), "[REDACTED] value");
 });

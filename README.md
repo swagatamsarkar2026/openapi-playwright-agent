@@ -31,10 +31,10 @@ The current scaffold has a three-command CLI workflow:
 3. **Run** — execute generated API tests against the server declared in the spec, or override it:
 
    ```powershell
-   npx.cmd tsx src/cli.ts run --base-url https://api.example.test
+   npx.cmd tsx src/cli.ts run --base-url https://api.example.test --results test-results\api-results.json
    ```
 
-   Alternatively, use `npm.cmd run test:api` with `API_BASE_URL` set in the environment.
+   The default result path is `test-results\api-results.json`; `--results` overrides it. Alternatively, use `npm.cmd run test:api` with `API_BASE_URL` set in the environment.
 
 ## Agentic application target
 
@@ -59,15 +59,23 @@ Negative-case proposals are created for documented 4xx responses, including thei
 
 `POST`, `PUT`, `PATCH`, and `DELETE` operations are skipped by default. After reviewing potential side effects, generate them with `--include-mutating`, then execute with `run --include-mutating`; both explicit opt-ins are required. Supported declared authentication uses environment variables: `API_BEARER_TOKEN`, `API_OAUTH_TOKEN`, `API_USERNAME`/`API_PASSWORD`, or `API_KEY_<SCHEME_NAME>` (the security scheme name converted to uppercase with non-alphanumeric characters changed to underscores). Credentials are never written to generated files.
 
-Local external `$ref` files and remote references may be resolved during parsing. Only use specifications and references from trusted sources. Keep test targets and credentials limited to environments authorized for testing.
+### Run results and diagnostics
+
+Each Playwright run writes a machine-readable JSON summary with stable case IDs, pass/fail/skip status, duration, request method and path template, expected/actual HTTP statuses when available, and a redacted failure code/message and step. Raw exception text, response bodies, request headers, and concrete request URLs/query values are not included. Known API credential environment-variable values and common credential-shaped strings are redacted. The built-in HTML reporter and failure traces are disabled to avoid secondary outputs containing raw request/response data. A report write failure fails the Playwright run.
+
+Response JSON assertions are not parsed when the response advertises a `Content-Length` above 5 MiB. This check is a parsing guard, not a transport-level response-size limit; Playwright can buffer the response before the assertion step.
+
+### Specification reference and resource policy
+
+Only internal `$ref` references (those beginning with `#`) are resolved. External references—including local files and remote URLs—are rejected before validation/dereferencing; inline or bundle those definitions into the specification. This avoids implicit filesystem reads and network access during analysis. Input specifications are limited to 5 MiB, 300,000 document nodes, 10,000 references, 100 levels of nesting, and 1,000 operations; parser validation/dereferencing has a 10-second timeout. These bounds reduce accidental or hostile resource exhaustion but do not make untrusted specs safe for unrestricted execution. Keep test targets and credentials limited to environments authorized for testing.
 
 ## Project status
 
-The deterministic foundation is implemented and verified for its current fixture coverage. Node.js 24.21.0/npm 11.19.0 dependencies are installed; typecheck, 7 unit tests, build, generated test TypeScript check, and Playwright discovery all pass. No live API requests have been run. Phase 1 remains in progress: VAL-04 and VAL-05 are complete; machine-readable run diagnostics and reference/resource/secret safety remain. The agentic interaction/application layer and service-line demo experience remain backlog work, not implemented features. See [the phased backlog](./BACKLOG.md) for current statuses and demo exit criteria.
+The deterministic foundation is implemented and verified for its current fixture coverage. Node.js 24.21.0/npm 11.19.0 dependencies are installed; typecheck, 9 unit tests, build, generated-test TypeScript checking, and Playwright discovery pass. A local mocked API run verified failure diagnostics and API-key redaction; no live API requests have been run. Phase 1 is complete for its documented exit gate (VAL-04 through VAL-07). The agentic interaction/application layer and service-line demo experience remain backlog work, not implemented features. See [the phased backlog](./BACKLOG.md) for current statuses and demo exit criteria.
 
 ## Implementation phases
 
-The work is organized into seven gated phases: **0)** deterministic foundation (complete for current verification scope), **1)** engine hardening and broader tests (in progress; VAL-04 and VAL-05 passed, VAL-06 is next), **2)** agent product/tool contract, **3)** conversational CLI MVP, **4)** approval-gated generation and execution, **5)** results/audit/agent quality, and **6)** demo readiness. Each phase has explicit dependencies and exit criteria in [BACKLOG.md](./BACKLOG.md); later agent phases should not start until their prerequisites and safety decisions are complete.
+The work is organized into seven gated phases: **0)** deterministic foundation (complete for current verification scope), **1)** engine hardening and broader tests (complete for its documented gate), **2)** agent product/tool contract, **3)** conversational CLI MVP, **4)** approval-gated generation and execution, **5)** results/audit/agent quality, and **6)** demo readiness. Each phase has explicit dependencies and exit criteria in [BACKLOG.md](./BACKLOG.md); later agent phases should not start until their prerequisites and safety decisions are complete.
 
 ## Development
 
