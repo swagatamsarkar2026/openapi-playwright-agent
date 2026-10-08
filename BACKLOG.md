@@ -17,11 +17,11 @@ Work proceeds in order. A phase is complete only when its exit criteria pass; co
 |---|---|---|---|---|
 | 0 | Deterministic API test foundation | Complete for current verification scope | None | Existing CLI, parser, case plan, generation, typecheck/tests/build, and sample generated-test discovery pass. This does not mean broad API compatibility is fully tested. |
 | 1 | Harden and validate the test engine | Complete for documented verification scope | Phase 0 | Serialization/auth/schema/error-path tests pass; generated artifacts are typechecked; execution diagnostics and resource/secret handling have documented tests. |
-| 2 | Agent product and tool contract | Not started | Phase 1; provider/hosting decision | Conversational CLI flow, provider constraints, typed tool schemas, state transitions, and approval policy are reviewed and documented before model integration. |
-| 3 | Conversational CLI MVP | Not started | Phase 2 | User can provide a spec/objective, receive grounded case explanations, and revise/exclude cases through a guided terminal session; no test execution happens implicitly. |
-| 4 | Approval-gated generation and execution | Not started | Phase 3 | Approved cases produce tests; target and mutating-operation confirmations are enforced in code; agent cannot execute arbitrary shell commands or bypass deterministic tools. |
-| 5 | Results, audit, and agent quality | Not started | Phase 4 | Results are linked to case IDs and steps; audit trail and redaction work; agent safety and usability tests pass. |
-| 6 | Service-line demo readiness | Not started | Phase 5 | Safe demo target, reset plan, scripted walkthrough, known limitations, and end-to-end acceptance criteria are verified. |
+| 2 | Provider-neutral MVP1 product and tool contract | In progress | Phase 1 | MVP1 boundary, typed deterministic tools, workflow states, approvals, evidence/provenance, audit events, and failure/interrupt behavior are documented without selecting a model provider. |
+| 3 | Deterministic guided CLI MVP1 | Not started | Phase 2 | User can provide a spec/objective, inspect grounded cases, include/exclude candidates, approve a plan revision, and generate tests only from that approved plan. No network execution or model integration occurs. |
+| 4 | Authorized API execution MVP2 | Not started | Phase 3 | Execution requires explicit authorized-target approval; mutating calls need separate approval; results are tied to the approved plan revision and redacted. |
+| 5 | Optional model integration and agent quality | Deferred; service-line guidance required | MVP1; provider/data/hosting approval | Provider strategy and inference/data policy are approved; model is limited to the provider-neutral contract; groundedness, prompt-injection, approval-bypass, secret, and interruption tests pass. |
+| 6 | Service-line demo readiness | Not started | Phase 4; Phase 5 only if model integration is approved for demo | Safe demo target, reset plan, known limitations, and end-to-end acceptance criteria are verified. MVP1 can be demonstrated without an LLM. |
 
 ### Phase 0 — Deterministic API test foundation
 
@@ -41,33 +41,38 @@ Work proceeds in order. A phase is complete only when its exit criteria pass; co
 
 Phase 1 verification: 9 unit tests, typecheck, build, generated-test TypeScript check, and Playwright discovery passed. A temporary local mock API run verified JSON results for an HTTP status mismatch and confirmed the API key did not appear in report or console output. No live API target was contacted. External `$ref` values are deliberately unsupported; only internal references are resolved.
 
-### Phase 2 — Agent product and tool contract
+### Phase 2 — Provider-neutral MVP1 product and tool contract
 
-- [ ] Decide approved model/provider, external inference/data policy, and hosting constraints (AGT-01).
-- [ ] Specify conversation states, typed tools, approval states, audit events, and error/interrupt behavior (AGT-02).
-- [ ] Define what assertions are spec-grounded facts versus user/model-proposed cases, and how each links to evidence.
-- **Exit:** product/security review approves the conversational CLI architecture and a provider-neutral tool boundary before any model SDK is added.
+- [x] Draft MVP1 as a deterministic guided CLI: inspect a spec, explain generated cases, edit case inclusion, approve a plan revision, and generate tests from that approved revision only.
+- [x] Draft conversation states, typed deterministic tools, audit events, and error/interrupt behavior (AGT-02).
+- [x] Draft fact/proposal labels and evidence-link requirements for contract assertions and user edits.
+- [x] Defer the model/provider, external inference/data policy, and hosting decision (AGT-01) until service-line guidance is received. No model SDK or outbound inference in MVP1.
+- [ ] Review the draft product/tool contract with the product owner/team and record revisions.
+- **Exit:** MVP1 product boundary and provider-neutral contracts are reviewed and documented; generation and execution approval boundaries are explicit. Current contract is a draft pending review.
 
-### Phase 3 — Conversational CLI MVP
+### Phase 3 — Deterministic guided CLI MVP1
 
-- [ ] Implement guided intake for spec, objective, authorized target, auth approach, and exclusions (AGT-03).
-- [ ] Show per-case evidence, input provenance, steps, expected results, and uncertainty; support revise/exclude/approve (AGT-04).
-- [ ] Add the interactive terminal workflow and resumable/helpful prompts (AGT-08).
-- **Exit:** a user can inspect and edit a grounded plan interactively; the CLI never runs requests as a side effect of analysis or conversation.
+- [ ] Implement guided local intake for specification and testing objective (AGT-03; target/auth intake is deferred to execution MVP2).
+- [ ] Show per-case evidence, input provenance, preconditions, steps, expected results, and uncertainty; support include/exclude review (AGT-04).
+- [ ] Add an interactive terminal workflow with helpful prompts and safe cancellation (AGT-08).
+- [ ] Require an explicit plan approval before generating tests; bind approval to a plan revision and invalidate it when the plan changes.
+- **Exit:** user can inspect and approve a grounded plan and generate only its included cases; conversation/analysis never sends API requests.
 
-### Phase 4 — Approval-gated generation and execution
+### Phase 4 — Authorized API execution MVP2
 
-- [ ] Generate tests only from the current approved plan revision.
-- [ ] Require explicit authorized-target confirmation before any API request.
-- [ ] Require a separate opt-in for mutating requests and default to an isolated non-production environment (AGT-05).
-- [ ] Implement bounded orchestration and audit of tool calls, approvals, changes, and outcomes (AGT-06).
-- **Exit:** tests prove unapproved plans, targets, and mutating operations cannot reach the API; the model cannot invoke arbitrary shell execution.
+- [ ] Collect and confirm an authorized non-production target and authentication approach before any API request.
+- [ ] Require separate explicit approval for execution and a separate opt-in for mutating calls (AGT-05).
+- [ ] Bind execution and results to the approved plan revision; preserve redacted result reporting.
+- [ ] Implement bounded deterministic orchestration and audit of tool calls, approvals, plan changes, and outcomes (AGT-06).
+- **Exit:** tests prove unapproved plans, targets, and mutating operations cannot reach the API; no arbitrary shell execution is exposed.
 
-### Phase 5 — Results, audit, and agent quality
+### Phase 5 — Optional model integration and agent quality
 
-- [ ] Present grounded run summaries by case ID and step, including pass/fail/skip, expected/actual outcome, and redacted evidence (AGT-07).
-- [ ] Add tests for prompt injection in specs, unsupported claims, approval bypass, secret leakage, invalid tool arguments, interruptions, and summaries (AGT-10).
-- **Exit:** result summaries are traceable to test-run evidence; adversarial and failure-path tests pass.
+- [ ] Obtain approved model/provider, inference/data policy, and hosting decisions from service-line guidance (AGT-01).
+- [ ] If approved, integrate through the provider-neutral tool contract; keep model output schema-validated and unable to bypass approvals.
+- [ ] Present grounded result summaries by case ID and step (AGT-07).
+- [ ] Add prompt-injection, unsupported-claim, approval-bypass, secret-leakage, invalid-argument, interruption, and summary tests (AGT-10).
+- **Exit:** any approved model integration stays within typed tools and passes groundedness, safety, and usability tests. This phase may remain deferred without blocking the non-LLM MVP1.
 
 ### Phase 6 — Service-line demo readiness
 
@@ -78,9 +83,10 @@ Phase 1 verification: 9 unit tests, typecheck, build, generated-test TypeScript 
 
 ### Recommended next actions
 
-1. Obtain the approved model/provider, external inference/data policy, and hosting constraints for AGT-01; do not add a provider SDK before this is decided.
-2. Complete the Phase 2 tool contract and safety review before implementing the conversational layer.
-3. Keep all implementation work on a short-lived feature branch from `develop` and use pull requests for integration.
+1. Review the provider-neutral MVP1 product/tool contract in `docs/AGENT-CONTRACT.md`.
+2. Implement Phase 3's guided plan review, approval, and generation workflow without API execution.
+3. Ask the service line for model/provider, inference/data, and hosting guidance before starting optional Phase 5.
+4. Keep all implementation work on a short-lived feature branch from `develop` and use pull requests for integration.
 
 ## Implemented foundation
 
@@ -110,18 +116,18 @@ Phase 1 verification: 9 unit tests, typecheck, build, generated-test TypeScript 
 
 ## Agentic application backlog
 
-The target is an agentic application that assists the user while keeping execution deterministic, reviewable, and bounded. No LLM, conversational agent, web UI, or agent orchestration has been implemented yet.
+The near-term target is a deterministic, provider-neutral MVP1 guided CLI. No LLM, conversational agent, web UI, or model orchestration has been implemented yet. See `docs/AGENT-CONTRACT.md` for the product boundary and tool contract.
 
 | ID | Priority | Item | Status | Acceptance criteria |
 |---|---|---|---|---|
-| AGT-01 | P0 | Decide approved model/provider strategy and hosting constraints | Open decision | Select the approved model/provider/runtime and hosting constraints. The interaction surface is decided: conversational CLI. Keep the core test engine provider-neutral. |
-| AGT-02 | P0 | Define agent workflow and typed tool contract | Not started; blocked on AGT-01 | Document state transitions and typed tools for inspect-spec, prepare-cases, revise/approve-plan, generate-tests, run-approved-tests, and summarize-results. Agent cannot bypass tool validation. |
-| AGT-03 | P0 | Implement conversational/project intake | Not started; blocked on AGT-01 | User can provide a spec, target environment, test objective, auth requirements, and exclusions; agent asks for missing safety-critical details rather than guessing. |
-| AGT-04 | P0 | Add grounded test-case explanation and user edits | Not started; blocked on AGT-02 | Every suggested assertion is linked to spec evidence or labeled as a proposal; user can approve, edit, exclude, or request alternatives before generation. |
-| AGT-05 | P0 | Add approval gates and execution policy | Not started; blocked on AGT-02 | No request is sent until the user confirms an authorized target; mutating tests need separate explicit approval and default to a non-production environment. |
-| AGT-06 | P1 | Implement bounded agent orchestration with audit trail | Not started; blocked on AGT-01/AGT-02 | Tool calls, approvals, case changes, and outcomes are recorded; retries/steps have limits; model output is schema-validated and cannot inject arbitrary shell execution. |
-| AGT-07 | P1 | Add guided results interpretation | Not started; blocked on VAL-06/AGT-02 | Agent summarizes pass/fail/skip by stable case ID, cites step evidence, distinguishes spec defects from service failures, and does not fabricate causes. |
-| AGT-08 | P1 | Implement conversational CLI experience for the demo | Not started; blocked on AGT-01/AGT-03 | Demo user can complete the agreed workflow through guided CLI prompts without editing generated files manually. |
+| AGT-01 | P0 | Decide approved model/provider strategy and hosting constraints | Deferred by user until service-line guidance | No provider decision is needed for MVP1. Before optional model integration, confirm approved provider/runtime, external inference/data policy, and hosting constraints. Keep the core test engine provider-neutral. |
+| AGT-02 | P0 | Define agent workflow and typed tool contract | Draft in `docs/AGENT-CONTRACT.md`; review pending | Document states, deterministic typed tools, approval/revision binding, audit events, evidence, and failure/interrupt behavior. MVP1 excludes run/summarize tools. |
+| AGT-03 | P0 | Implement MVP1 local intake | Not started; Phase 3 | User can provide a local spec and testing objective. Target/auth intake belongs to MVP2 before API execution. |
+| AGT-04 | P0 | Add grounded test-case explanation and selection | Not started; Phase 3 | Every contract assertion links to spec evidence or is labeled as a proposal; user can include/exclude candidates and approve before generation. |
+| AGT-05 | P0 | Add execution approval policy | Deferred to MVP2 / Phase 4 | No request is sent until the user confirms an authorized target; mutating tests need separate explicit approval and a non-production target. MVP1 does not run tests. |
+| AGT-06 | P1 | Implement bounded orchestration with audit trail | Deferred; only if model integration is approved | Record tool calls, approvals, plan changes, and outcomes; use bounded deterministic tools; model output, if added, is schema-validated and cannot invoke shell commands. |
+| AGT-07 | P1 | Add guided result interpretation | Deferred to a post-MVP1 phase | Summarize pass/fail/skip by stable case ID, cite step evidence, distinguish observed outcomes from hypotheses, and do not fabricate causes. |
+| AGT-08 | P1 | Implement deterministic guided CLI MVP1 | Not started; Phase 3 | User can complete the spec-to-approved-plan-to-test-generation workflow using guided prompts without editing generated files manually; no model or API request is required. |
 | AGT-09 | P1 | Prepare safe demo dataset/spec and scripted walkthrough | Not started | Reproducible demo uses a non-production target, known credentials or mock auth, representative positive/negative cases, and documented reset/cleanup. |
 | AGT-10 | P1 | Add agent-specific quality, safety, and usability tests | Not started; blocked on AGT-03/AGT-06 | Tests cover prompt injection in specs, unsupported claims, approval bypass, secret leakage, tool argument validation, interruptions, and clear result summaries. |
 
@@ -141,6 +147,6 @@ The target is an agentic application that assists the user while keeping executi
 | Decision | Status | Notes |
 |---|---|---|
 | Interaction surface | Decided: conversational CLI | Selected for the service-line demo; implement as an interactive guided terminal workflow. |
-| Approved LLM/model provider and whether inference can use external services | Open | Must follow service-line data and security policy. |
+| Approved LLM/model provider and whether inference can use external services | Deferred | User will request service-line guidance; model integration is not a prerequisite for MVP1. |
 | Demo API: local mock, dedicated test environment, or approved public sandbox | Open | Mutating demo cases must not target production. |
 | Authentication/secret storage mechanism for the application | Open | Never place actual credentials in specs, generated source, or checked-in files. |
