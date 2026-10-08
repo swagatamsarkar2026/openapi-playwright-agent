@@ -48,6 +48,11 @@ type GeneratedCase = {
     expectedResult: string;
   }>;
   warnings: string[];
+  evidence: Array<{
+    source: "openapi";
+    specFingerprint: string;
+    pointer: string;
+  }>;
 };
 
 type SchemaExpectation = {
@@ -337,6 +342,9 @@ function markdownPlan(plan: TestPlan): string {
       lines.push("");
       lines.push(`- **Case type:** ${testCase.caseType}`);
       lines.push(`- **Automation status:** ${testCase.execution === "automated" ? "automated candidate" : "manual review"}`);
+      for (const evidence of testCase.evidence) {
+        lines.push(`- **Specification evidence:** fingerprint \`${evidence.specFingerprint}\`, JSON Pointer \`${evidence.pointer}\`.`);
+      }
       lines.push(`- **Risk:** ${testCase.mutating ? "Mutating; isolated environment and explicit opt-in required" : "Read-only"}`);
       if (testCase.expectedStatus !== undefined) lines.push(`- **Expected status:** HTTP ${testCase.expectedStatus}`);
       if (testCase.preconditions.length > 0) {

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { spawn } from "node:child_process";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
@@ -7,6 +8,7 @@ import { buildTestPlan } from "./openapi.js";
 import { writeGeneratedTests, writePlan } from "./generator.js";
 import { redactSensitiveText } from "./redaction.js";
 import { assertSafeOperationCount, assertSafeSpecDocument, assertSafeSpecSize, SPEC_LIMITS } from "./spec-safety.js";
+import { approvePlan, createGuidedSession, generateApprovedPlan, recordWorkflowCancellation, revisePlanSelection, type WorkflowEvent } from "./guided-workflow.js";
 
 const sampleSpec = resolve("examples/petstore/openapi.yaml");
 
@@ -45,6 +47,7 @@ test("writes a plan and keeps mutating cases opted out by default", async () => 
     assert.match(generated, /manual-review/);
     assert.match(await readFile(planPath, "utf8"), /Test steps/);
     assert.match(await readFile(planPath, "utf8"), /source: schema-derived numeric sample/);
+    assert.match(await readFile(planPath, "utf8"), /Specification evidence:\*\* fingerprint/);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
@@ -445,3 +448,142 @@ test("redacts configured credentials and credential-shaped values", () => {
   );
   assert.equal(redactSensitiveText("failed value", ["failed"]), "[REDACTED] value");
 });
+
+test("guided plan approval is revision-bound and generation includes only selected cases", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "openapi-guided-"));
+  const events: WorkflowEvent[] = [];
+  try {
+    const session = await createGuidedSession(sampleSpec, "Review read-only operations", async event => {
+      events.push(event);
+    });
+    const cases = session.plan.operations.flatMap(operation => operation.testCases);
+    const firstCase = cases[0];
+    const secondCase = cases[1];
+    assert.ok(firstCase);
+    assert.ok(secondCase);
+    assert.equal(firstCase.evidence[0]?.specFingerprint, session.plan.specFingerprint);
+    assert.equal(firstCase.evidence[1]?.pointer, "/paths/~1pets/get/responses/200");
+    await assert.rejects(revisePlanSelection(session, 0, [firstCase.id]), /Stale plan revision/);
+    await assert.rejects(revisePlanSelection(session, 1, ["unknown-case"]), /Unknown case ID/);
+    await assert.rejects(revisePlanSelection(session, 1, [firstCase.id, firstCase.id]), /duplicate/);
+
+    const revision = await revisePlanSelection(session, 1, [firstCase.id]);
+    assert.equal(revision, 2);
+    await assert.rejects(approvePlan(session, 1, [firstCase.id]), /stale plan revision/);
+    const approval = await approvePlan(session, revision, [firstCase.id]);
+    const changedRevision = await revisePlanSelection(session, revision, [secondCase.id]);
+    assert.equal(changedRevision, 3);
+    await assert.rejects(generateApprovedPlan(session, approval.token, join(directory, "stale.spec.ts")), /approval/);
+    await assert.rejects(approvePlan(session, changedRevision, []), /at least one case/);
+
+    const currentApproval = await approvePlan(session, changedRevision, [secondCase.id]);
+    const outputPath = join(directory, "approved.spec.ts");
+    const generated = await generateApprovedPlan(session, currentApproval.token, outputPath);
+    const source = await readFile(outputPath, "utf8");
+    assert.deepEqual(generated.caseIds, [secondCase.id]);
+    assert.match(source, new RegExp(secondCase.id));
+    assert.doesNotMatch(source, new RegExp(firstCase.id));
+    const blockedOutputPath = join(directory, "blocked-output");
+    await mkdir(blockedOutputPath);
+    await assert.rejects(generateApprovedPlan(session, currentApproval.token, blockedOutputPath));
+    const eventNames = events.map(event => event.event);
+    assert.deepEqual(eventNames, [
+      "spec_inspected",
+      "plan_prepared",
+      "tool_failed",
+      "tool_failed",
+      "tool_failed",
+      "case_selection_changed",
+      "tool_failed",
+      "plan_approved",
+      "approval_invalidated",
+      "case_selection_changed",
+      "tool_failed",
+      "tool_failed",
+      "plan_approved",
+      "tests_generated",
+      "tool_failed"
+    ]);
+    assert.ok(events.every(event => event.outcome === "success" || event.outcome === "failed"));
+    assert.ok(!JSON.stringify(events).includes(currentApproval.token), "audit events must not contain the approval token");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("guided workflow surfaces audit sink failures", async () => {
+  await assert.rejects(
+    createGuidedSession(sampleSpec, undefined, async () => {
+      throw new Error("audit sink unavailable");
+    }),
+    /audit sink unavailable/
+  );
+});
+
+test("guided CLI generates only explicitly approved cases and audits cancellation", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "openapi-guided-cli-"));
+  try {
+    const outputPath = join(directory, "approved.spec.ts");
+    const auditPath = join(directory, "guided.jsonl");
+    const cases = (await buildTestPlan(sampleSpec)).operations.flatMap(operation => operation.testCases);
+    const selectedCase = cases[0];
+    assert.ok(selectedCase);
+    const result = await runGuidedCli([
+      "--spec", sampleSpec,
+      "--objective", "Review one candidate",
+      "--out", outputPath,
+      "--audit", auditPath
+    ], `${selectedCase.id}\nAPPROVE\n`);
+    assert.equal(result.code, 0, result.stderr);
+    assert.match(result.stdout, /No API requests were sent/);
+    const generatedSource = await readFile(outputPath, "utf8");
+    assert.match(generatedSource, new RegExp(selectedCase.id));
+    for (const testCase of cases.filter(item => item.id !== selectedCase.id)) {
+      assert.doesNotMatch(generatedSource, new RegExp(testCase.id));
+    }
+    const events = (await readFile(auditPath, "utf8")).trim().split("\n").map(line => JSON.parse(line) as WorkflowEvent);
+    assert.ok(events.some(event => event.event === "plan_approved" && event.planRevision === 2));
+    assert.ok(events.some(event => event.event === "tests_generated" && event.caseIds?.length === 1));
+    assert.ok(events.every(event => !JSON.stringify(event).includes("approvalToken")));
+
+    const eofOutputPath = join(directory, "eof.spec.ts");
+    const eofAuditPath = join(directory, "eof.jsonl");
+    const eofResult = await runGuidedCli([
+      "--spec", sampleSpec,
+      "--out", eofOutputPath,
+      "--audit", eofAuditPath
+    ], "\n");
+    assert.equal(eofResult.code, 0, eofResult.stderr);
+    assert.match(eofResult.stdout, /Review cancelled/);
+    await assert.rejects(readFile(eofOutputPath, "utf8"), { code: "ENOENT" });
+    const eofEvents = (await readFile(eofAuditPath, "utf8")).trim().split("\n")
+      .map(line => JSON.parse(line) as WorkflowEvent);
+    assert.equal(eofEvents.at(-1)?.event, "cancelled");
+
+    const cancellationEvents: WorkflowEvent[] = [];
+    const session = await createGuidedSession(sampleSpec, undefined, async event => {
+      cancellationEvents.push(event);
+    });
+    await recordWorkflowCancellation(session);
+    assert.equal(cancellationEvents.at(-1)?.event, "cancelled");
+    assert.equal(session.approval, undefined);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+function runGuidedCli(args: string[], input: string): Promise<{ code: number | null; stdout: string; stderr: string }> {
+  return new Promise((resolveRun, reject) => {
+    const child = spawn(process.execPath, [resolve("node_modules/tsx/dist/cli.mjs"), "src/cli.ts", "guide", ...args], {
+      cwd: process.cwd(),
+      stdio: ["pipe", "pipe", "pipe"]
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8").on("data", chunk => { stdout += chunk; });
+    child.stderr.setEncoding("utf8").on("data", chunk => { stderr += chunk; });
+    child.on("error", reject);
+    child.on("close", code => resolveRun({ code, stdout, stderr }));
+    child.stdin.end(input);
+  });
+}
