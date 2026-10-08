@@ -16,7 +16,7 @@ Work proceeds in order. A phase is complete only when its exit criteria pass; co
 | Phase | Name | Status | Depends on | Exit gate |
 |---|---|---|---|---|
 | 0 | Deterministic API test foundation | Complete for current verification scope | None | Existing CLI, parser, case plan, generation, typecheck/tests/build, and sample generated-test discovery pass. This does not mean broad API compatibility is fully tested. |
-| 1 | Harden and validate the test engine | In progress | Phase 0 | Serialization/auth/schema/error-path tests pass; generated artifacts are typechecked; execution diagnostics and resource/secret handling have documented tests. |
+| 1 | Harden and validate the test engine | Complete for documented verification scope | Phase 0 | Serialization/auth/schema/error-path tests pass; generated artifacts are typechecked; execution diagnostics and resource/secret handling have documented tests. |
 | 2 | Agent product and tool contract | Not started | Phase 1; provider/hosting decision | Conversational CLI flow, provider constraints, typed tool schemas, state transitions, and approval policy are reviewed and documented before model integration. |
 | 3 | Conversational CLI MVP | Not started | Phase 2 | User can provide a spec/objective, receive grounded case explanations, and revise/exclude cases through a guided terminal session; no test execution happens implicitly. |
 | 4 | Approval-gated generation and execution | Not started | Phase 3 | Approved cases produce tests; target and mutating-operation confirmations are enforced in code; agent cannot execute arbitrary shell commands or bypass deterministic tools. |
@@ -35,9 +35,11 @@ Work proceeds in order. A phase is complete only when its exit criteria pass; co
 
 - [x] Add broader deterministic tests for Swagger/OpenAPI examples, defaults, enums, request bodies, security, warnings, and operation/response variants (VAL-04).
 - [x] Improve schema assertions and parameter serialization edge coverage; explicitly test unsupported styles (VAL-05).
-- [ ] Add machine-readable run results and actionable failure diagnostics with secrets redacted (VAL-06).
-- [ ] Review and test local/remote `$ref` policy, input/resource bounds, and secret redaction (VAL-07).
+- [x] Add machine-readable run results and actionable failure diagnostics with secrets redacted (VAL-06).
+- [x] Review and test local/remote `$ref` policy, input/resource bounds, and secret redaction (VAL-07).
 - **Exit:** targeted tests cover supported and deliberately unsupported inputs; generated output remains type-safe; result and security behavior is documented and tested.
+
+Phase 1 verification: 9 unit tests, typecheck, build, generated-test TypeScript check, and Playwright discovery passed. A temporary local mock API run verified JSON results for an HTTP status mismatch and confirmed the API key did not appear in report or console output. No live API target was contacted. External `$ref` values are deliberately unsupported; only internal references are resolved.
 
 ### Phase 2 — Agent product and tool contract
 
@@ -76,9 +78,9 @@ Work proceeds in order. A phase is complete only when its exit criteria pass; co
 
 ### Recommended next actions
 
-1. VAL-04 and VAL-05 now pass; continue Phase 1 with VAL-06 (machine-readable run results and failure diagnostics).
-2. In parallel, obtain the approved model/provider and hosting constraints for AGT-01; do not add a provider SDK before this is decided.
-3. Complete Phase 1's exit gate, then lock the Phase 2 tool contract before implementing the conversational layer.
+1. Obtain the approved model/provider, external inference/data policy, and hosting constraints for AGT-01; do not add a provider SDK before this is decided.
+2. Complete the Phase 2 tool contract and safety review before implementing the conversational layer.
+3. Keep all implementation work on a short-lived feature branch from `develop` and use pull requests for integration.
 
 ## Implemented foundation
 
@@ -99,12 +101,12 @@ Work proceeds in order. A phase is complete only when its exit criteria pass; co
 | ID | Priority | Item | Status | Acceptance criteria |
 |---|---|---|---|---|
 | VAL-01 | P0 | Install Node.js 20+ and project dependencies | Done | Verified after VS Code restart: Node.js 24.21.0 resolves on PATH; npm 11.19.0 works via `npm.cmd` (PowerShell blocks `npm.ps1` by execution policy); install completed with 0 reported vulnerabilities. |
-| VAL-02 | P0 | Run typecheck, unit tests, and build; repair issues | Passed (2026-10-08) | `npm.cmd run typecheck`, `npm.cmd test` (5 passing), and `npm.cmd run build` all pass. |
+| VAL-02 | P0 | Run typecheck, unit tests, and build; repair issues | Passed (2026-10-08) | `npm.cmd run typecheck`, `npm.cmd test` (9 passing), and `npm.cmd run build` all pass. |
 | VAL-03 | P0 | Typecheck generated Playwright output, not only generator source | Passed (2026-10-08) | Generated Petstore output typechecked and `playwright test --list` discovered 4 cases. No live API request was made. Fixed generated case typing discovered during check. |
-| VAL-04 | P1 | Expand deterministic tests for cases, request serialization, security, and plan rendering | Passed (2026-10-08) | Five unit tests pass. Coverage includes Swagger 2.0, OpenAPI 3.0/3.1, parameter examples/defaults/enums, named request-body examples, multiple 2xx responses, documented 4xx response properties, API-key environment wiring, unsupported serialization warnings, stable IDs, and mutation default. |
+| VAL-04 | P1 | Expand deterministic tests for cases, request serialization, security, and plan rendering | Passed (2026-10-08) | Unit tests cover Swagger 2.0, OpenAPI 3.0/3.1, parameter examples/defaults/enums, named request-body examples, multiple 2xx responses, documented 4xx response properties, API-key environment wiring, unsupported serialization warnings, stable IDs, and mutation default. |
 | VAL-05 | P1 | Improve contract assertions and serialization edge coverage | Passed (2026-10-08) | Seven unit tests pass. Generated requests serialize supported query form arrays/objects, deepObject, delimited arrays, simple path arrays/scalars, and simple headers. Unsupported styles, cookies, nested non-primitive parameter values, and allowReserved are flagged for review. Response assertions validate nested required fields, types (including OpenAPI 3.1 union types), enums, numeric bounds, string lengths, and array items. |
-| VAL-06 | P1 | Add generated-test run result export and failure diagnostics | Not started | User can associate each result with case ID, step, request metadata (secrets redacted), expected/actual status, and response diagnostics. |
-| VAL-07 | P1 | Review remote/local `$ref` safety, resource limits, and secret redaction | Not started | Trusted-reference policy, bounded input/resource use, and redaction behavior are documented and tested. |
+| VAL-06 | P1 | Add generated-test run result export and failure diagnostics | Passed (2026-10-08) | Custom Playwright reporter writes JSON records with case ID, step kind, method/path template, expected/actual status, and safe failure diagnostics. End-to-end local mock returned an intentional 418 against expected 200; report contained the mismatch and redacted API key, verified in JSON and console output. |
+| VAL-07 | P1 | Review remote/local `$ref` safety, resource limits, and secret redaction | Passed (2026-10-08) | Only internal `$ref` values are accepted; external file/network references are rejected before parser validation. Enforces 5 MiB input, 300,000 document nodes, 10,000 references, depth 100, 1,000 operations, and parser timeout; tests cover external-ref rejection, size/depth limits, and secret-pattern redaction. Response Content-Length above 5 MiB skips JSON assertion parsing (not a transport-level cap). |
 
 ## Agentic application backlog
 
