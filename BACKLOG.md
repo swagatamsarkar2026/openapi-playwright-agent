@@ -19,7 +19,7 @@ Work proceeds in order. A phase is complete only when its exit criteria pass; co
 | 1 | Harden and validate the test engine | Complete for documented verification scope | Phase 0 | Serialization/auth/schema/error-path tests pass; generated artifacts are typechecked; execution diagnostics and resource/secret handling have documented tests. |
 | 2 | Provider-neutral MVP1 product and tool contract | Complete; merged to develop/main | Phase 1 | MVP1 boundary, typed deterministic tools, workflow states, approvals, evidence/provenance, audit events, and failure/interrupt behavior are documented without selecting a model provider. |
 | 3 | Deterministic guided CLI MVP1 | Complete | Phase 2 | User can provide a spec/objective, inspect grounded cases, include/exclude candidates, approve a plan revision, and generate tests only from that approved plan. No network execution or model integration occurs. |
-| 4 | Authorized API execution MVP2 | Complete; ready for PR from `feature/phase-4-authorized-execution` | Phase 3 | Execution requires explicit authorized-target approval; mutating calls need separate approval; results are tied to the approved plan revision and redacted. |
+| 4 | Authorized API execution MVP2 | Complete; merged to develop/main | Phase 3 | Execution requires explicit authorized-target approval; mutating calls need separate approval; results are tied to the approved plan revision and redacted. |
 | 5 | Optional model integration and agent quality | Deferred; service-line guidance required | MVP1; provider/data/hosting approval | Provider strategy and inference/data policy are approved; model is limited to the provider-neutral contract; groundedness, prompt-injection, approval-bypass, secret, and interruption tests pass. |
 | 6 | Service-line demo readiness | Not started | Phase 4; Phase 5 only if model integration is approved for demo | Safe demo target, reset plan, known limitations, and end-to-end acceptance criteria are verified. MVP1 can be demonstrated without an LLM. |
 
@@ -68,6 +68,12 @@ Phase 1 verification: 9 unit tests, typecheck, build, generated-test TypeScript 
 - **Verification:** unapproved artifacts, declined targets, and missing credentials are rejected before API invocation; mutation approval is independently required; an authenticated read-only plan passed against an isolated local mock with plan-bound results and audit. Typecheck, all 17 tests, build, and diff checks pass. No external target has been exercised.
 - **Exit:** tests prove unapproved plans, targets, and mutating operations cannot reach the API; no arbitrary shell execution is exposed.
 
+### Phase 4 follow-up — Petstore onboarding
+
+- [x] Add a browser-friendly, step-by-step onboarding guide for spec intake, case review/approval, and guarded API execution using Petstore.
+- [x] Validate the guide in a browser and run only the read-only `GET /store/inventory` case generated from Petstore's live Swagger 2.0 spec; record the observed result and any service limitations.
+- **Verification:** `TC-GETINVENTORY-POS-200` passed against `https://petstore.swagger.io/v2/store/inventory` with the spec's public sample key. The bundled OpenAPI 3 fixture targets `/v1/pets`, which currently returns 404 from the live v2 service; the guide downloads the service's actual Swagger spec instead. Windows Node TLS required `--use-system-ca`; verification kept certificate validation enabled. No mutating calls were made.
+
 ### Phase 5 — Optional model integration and agent quality
 
 - [ ] Obtain approved model/provider, inference/data policy, and hosting decisions from service-line guidance (AGT-01).
@@ -85,9 +91,9 @@ Phase 1 verification: 9 unit tests, typecheck, build, generated-test TypeScript 
 
 ### Recommended next actions
 
-1. Push `feature/phase-4-authorized-execution` and open a PR into `develop`; promote to `main` only through the established branch workflow.
-2. Keep real-service verification separate until an authorized non-production target is explicitly provided.
-3. Ask the service line for model/provider, inference/data, and hosting guidance before starting optional Phase 5.
+1. Phase 5 is optional and blocked on service-line decisions about model/provider, inference/data policy, and hosting. Phase 6 demo preparation can proceed without a model.
+2. Ask the service line for model/provider, inference/data, and hosting guidance before starting optional Phase 5.
+3. Select a repeatable service-line demo target and reset/cleanup procedure for Phase 6; the public Petstore is an onboarding example, not an enterprise demo target.
 4. Keep all implementation work on a short-lived feature branch from `develop` and use pull requests for integration.
 
 ## Implemented foundation
