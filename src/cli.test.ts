@@ -8,6 +8,7 @@ import test from "node:test";
 import { buildTestPlan } from "./openapi.js";
 import { writeGeneratedTests, writePlan } from "./generator.js";
 import { redactSensitiveText } from "./redaction.js";
+import { formatRunSummary } from "./run-summary.js";
 import { createExecutionPlanMetadata, generatedExecutionContentFingerprint, readApprovedExecutionPlan, resolveGeneratedTestFile, serializeExecutionPlanMarker, validateAuthorizedTarget } from "./execution.js";
 import { assertSafeOperationCount, assertSafeSpecDocument, assertSafeSpecSize, SPEC_LIMITS } from "./spec-safety.js";
 import { approvePlan, createGuidedSession, generateApprovedPlan, recordWorkflowCancellation, revisePlanSelection, type WorkflowEvent } from "./guided-workflow.js";
@@ -46,6 +47,9 @@ test("writes a plan and keeps mutating cases opted out by default", async () => 
     assert.match(generated, /expect\(response\.status\(\)\)\.toBe\(testCase\.expectedStatus\)/);
     assert.match(generated, /maxRedirects: 0/);
     assert.match(generated, /api-run-diagnostic\.json/);
+    assert.match(generated, /stepNumber,/);
+    assert.match(generated, /activeStepNumber,/);
+    assert.match(generated, /activeStepNumber = index \+ 1/);
     assert.match(generated, /actualStatus/);
     assert.match(generated, /manual-review/);
     assert.match(await readFile(planPath, "utf8"), /Test steps/);
@@ -54,6 +58,64 @@ test("writes a plan and keeps mutating cases opted out by default", async () => 
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+test("summarizes recorded outcomes with step evidence and redacted text", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "openapi-run-summary-"));
+  const resultsPath = join(directory, "results.json");
+  try {
+    await writeFile(resultsPath, JSON.stringify({
+      schemaVersion: 1,
+      summary: { total: 999, passed: 999, failed: 0, skipped: 0 },
+      results: [
+        {
+          caseId: "TC-READ-POS-200",
+          outcome: "passed",
+          expectedStatus: 200,
+          actualStatus: 200,
+          diagnostic: { stepNumber: 5, stepKind: "assert-response-schema" }
+        },
+        {
+          caseId: "TC-READ-NEG-404",
+          outcome: "failed",
+          expectedStatus: 200,
+          actualStatus: 404,
+          diagnostic: {
+            stepKind: "assert-status",
+            stepNumber: 4,
+            message: "Expected HTTP 200; received HTTP 404. token=local-summary-secret"
+          }
+        },
+        { caseId: "TC-READ-SKIP", outcome: "skipped" }
+      ]
+    }));
+
+    const result = await runCli("summarize", ["--results", resultsPath], "", {
+      API_BEARER_TOKEN: "local-summary-secret"
+    });
+    assert.equal(result.code, 0, result.stderr);
+    assert.match(result.stdout, /3 case\(s\); 1 passed, 1 failed, 1 skipped/);
+    assert.match(result.stdout, /TC-READ-POS-200.*recorded at step 5 \(assert-response-schema\)/);
+    assert.match(result.stdout, /TC-READ-NEG-404.*recorded at step 4 \(assert-status\)/);
+    assert.match(result.stdout, /no root cause is inferred/);
+    assert.doesNotMatch(result.stdout, /local-summary-secret/);
+    assert.match(result.stdout, /\[REDACTED\]/);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("rejects unsupported API result report schemas", () => {
+  assert.throws(() => formatRunSummary({ schemaVersion: 2, results: [] }), /schemaVersion 1/);
+  assert.throws(() => formatRunSummary({ schemaVersion: 1, results: [{ caseId: "x", outcome: "unknown" }] }), /record at index 0/);
+});
+
+test("labels timed-out cases distinctly", () => {
+  const summary = formatRunSummary({
+    schemaVersion: 1,
+    results: [{ caseId: "TC-READ-TIMEOUT", outcome: "timedOut" }]
+  });
+  assert.match(summary, /TIMED OUT TC-READ-TIMEOUT/);
 });
 
 test("accepts Swagger 2.0 and OpenAPI 3.1 inputs", async () => {
@@ -728,13 +790,14 @@ test("run executes only after approvals and binds results to the approved plan",
 
     const results = JSON.parse(await readFile(resultsPath, "utf8")) as {
       execution: { planId: string; planRevision: number; specFingerprint: string; targetFingerprint: string };
-      results: Array<{ caseId: string }>;
+      results: Array<{ caseId: string; diagnostic?: { stepNumber?: number } }>;
     };
     assert.equal(results.execution.planId, session.planId);
     assert.equal(results.execution.planRevision, 2);
     assert.equal(results.execution.specFingerprint, session.plan.specFingerprint);
     assert.match(results.execution.targetFingerprint, /^[\da-f]{64}$/);
     assert.deepEqual(results.results.map(result => result.caseId), [readOnlyCase.id]);
+    assert.equal(results.results[0]?.diagnostic?.stepNumber, readOnlyCase.steps.length);
     assert.doesNotMatch(JSON.stringify(results), /local-only-test-token/);
     assert.doesNotMatch(runResult.stdout + runResult.stderr, /local-only-test-token/);
     const auditEvents = (await readFile(auditPath, "utf8")).trim().split("\n")

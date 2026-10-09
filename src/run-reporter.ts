@@ -8,6 +8,7 @@ interface ApiRunDiagnostic {
   method: string;
   pathTemplate: string;
   stepKind?: string;
+  stepNumber?: number;
   expectedStatus?: number;
   actualStatus?: number;
   code?: string;
@@ -54,6 +55,9 @@ function parseDiagnostic(result: TestResult): ApiRunDiagnostic | undefined {
     method: value.method,
     pathTemplate: value.pathTemplate,
     ...(typeof value.stepKind === "string" ? { stepKind: value.stepKind } : {}),
+      ...(typeof value.stepNumber === "number" && Number.isSafeInteger(value.stepNumber) && value.stepNumber > 0
+        ? { stepNumber: value.stepNumber }
+        : {}),
     ...(typeof value.expectedStatus === "number" ? { expectedStatus: value.expectedStatus } : {}),
     ...(typeof value.actualStatus === "number" ? { actualStatus: value.actualStatus } : {}),
     ...(typeof value.code === "string" ? { code: value.code } : {}),
@@ -78,11 +82,12 @@ function safeRecord(test: TestCase, result: TestResult): ApiRunRecord {
       pathTemplate: redactSensitiveText(diagnostic.pathTemplate)
     };
   }
-  if (outcome === "failed" || outcome === "timedOut" || outcome === "interrupted") {
+  if (diagnostic || outcome === "failed" || outcome === "timedOut" || outcome === "interrupted") {
     record.diagnostic = {
       code: diagnostic?.code ?? "test-failed",
       message: redactSensitiveText(diagnostic?.message ?? "The test failed; inspect the case steps and target service."),
-      ...(diagnostic?.stepKind ? { stepKind: redactSensitiveText(diagnostic.stepKind) } : {})
+      ...(diagnostic?.stepKind ? { stepKind: redactSensitiveText(diagnostic.stepKind) } : {}),
+        ...(diagnostic?.stepNumber === undefined ? {} : { stepNumber: diagnostic.stepNumber })
     };
   }
   return record;

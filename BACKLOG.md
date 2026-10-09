@@ -78,8 +78,9 @@ Phase 1 verification: 9 unit tests, typecheck, build, generated-test TypeScript 
 
 - [ ] Obtain approved model/provider, inference/data policy, and hosting decisions from service-line guidance (AGT-01).
 - [ ] If approved, integrate through the provider-neutral tool contract; keep model output schema-validated and unable to bypass approvals.
-- [ ] Present grounded result summaries by case ID and step (AGT-07).
+- [x] Present grounded result summaries by case ID and step (AGT-07).
 - [ ] Add prompt-injection, unsupported-claim, approval-bypass, secret-leakage, invalid-argument, interruption, and summary tests (AGT-10).
+- **AGT-07 verification (2026-10-08):** `summarize` validates schema-version-1 reports, computes outcomes from records, shows stable case IDs and available HTTP/step evidence, redacts displayed text, and makes no root-cause claims. Typecheck, build, and all 20 tests pass. This deterministic command does not imply model/provider integration is complete.
 - **Exit:** any approved model integration stays within typed tools and passes groundedness, safety, and usability tests. This phase may remain deferred without blocking the non-LLM MVP1.
 
 ### Phase 6 — Service-line demo readiness
@@ -129,12 +130,12 @@ The near-term target is a deterministic, provider-neutral MVP1 guided CLI. No LL
 | ID | Priority | Item | Status | Acceptance criteria |
 |---|---|---|---|---|
 | AGT-01 | P0 | Decide approved model/provider strategy and hosting constraints | Deferred by user until service-line guidance | No provider decision is needed for MVP1. Before optional model integration, confirm approved provider/runtime, external inference/data policy, and hosting constraints. Keep the core test engine provider-neutral. |
-| AGT-02 | P0 | Define agent workflow and typed tool contract | Complete; merged to develop/main | Document states, deterministic typed tools, approval/revision binding, audit events, evidence, and failure/interrupt behavior. MVP1 excludes run/summarize tools. |
+| AGT-02 | P0 | Define agent workflow and typed tool contract | Complete; merged to develop/main | Document states, deterministic typed tools, approval/revision binding, audit events, evidence, and failure/interrupt behavior. The MVP1 contract excludes run/summarize tools; deterministic result summarization was added post-MVP1. |
 | AGT-03 | P0 | Implement MVP1 local intake | Complete; Phase 3 | User can provide a local spec and testing objective. Target/auth intake belongs to MVP2 before API execution. |
 | AGT-04 | P0 | Add grounded test-case explanation and selection | Complete; Phase 3 | Every contract assertion links to spec evidence or is labeled as a proposal; user can include/exclude candidates and approve before generation. |
 | AGT-05 | P0 | Add execution approval policy | Complete; Phase 4 | No request is sent until the user confirms an authorized target; mutating tests need separate explicit approval and a non-production target. MVP1 does not run tests. |
 | AGT-06 | P1 | Implement bounded orchestration with audit trail | Complete; Phase 4 | Record tool calls, approvals, plan changes, and outcomes; use bounded deterministic tools; model output, if added, is schema-validated and cannot invoke shell commands. |
-| AGT-07 | P1 | Add guided result interpretation | Deferred to a post-MVP1 phase | Summarize pass/fail/skip by stable case ID, cite step evidence, distinguish observed outcomes from hypotheses, and do not fabricate causes. |
+| AGT-07 | P1 | Add guided result interpretation | Verified (2026-10-08) | Summarize pass/fail/skip by stable case ID, cite available numbered-step and HTTP status evidence, distinguish recorded observations from hypotheses, redact displayed text, and do not fabricate causes. |
 | AGT-08 | P1 | Implement deterministic guided CLI MVP1 | Complete; Phase 3 | User can complete the spec-to-approved-plan-to-test-generation workflow using guided prompts without editing generated files manually; no model or API request is required. |
 | AGT-09 | P1 | Prepare safe demo dataset/spec and scripted walkthrough | Not started | Reproducible demo uses a non-production target, known credentials or mock auth, representative positive/negative cases, and documented reset/cleanup. |
 | AGT-10 | P1 | Add agent-specific quality, safety, and usability tests | Not started; blocked on AGT-03/AGT-06 | Tests cover prompt injection in specs, unsupported claims, approval bypass, secret leakage, tool argument validation, interruptions, and clear result summaries. |

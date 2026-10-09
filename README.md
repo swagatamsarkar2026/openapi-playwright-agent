@@ -18,7 +18,7 @@ npm.cmd install
 
 ## Workflow
 
-The current scaffold has a three-command CLI workflow:
+The current scaffold has a four-command CLI workflow:
 
 1. **Analyze** — validate a spec, derive stable-ID test cases, and write a detailed plan:
 
@@ -39,6 +39,12 @@ The current scaffold has a three-command CLI workflow:
    ```
 
    The runner checks the approved artifact and required credential environment variables, then asks you to confirm the target is authorized and non-production, confirm configured authentication when needed, and separately approve execution. Non-loopback targets must use HTTPS. Plans containing only manual-review/unsupported cases are refused. If the plan contains mutating cases and `--include-mutating` is supplied, a further `APPROVE MUTATING CALLS` confirmation is required. One generated file is run through the fixed Playwright CLI entry point with a 10-minute process cap; per-test timeout remains 30 seconds. Results and local audit events include the approved plan revision and fingerprints, not credential values. The default results path is `test-results\api-results.json`; `--results` overrides it.
+
+4. **Summarize recorded results** — interpret a completed run without sending requests:
+
+   ```powershell
+   npx.cmd tsx src/cli.ts summarize --results test-results\api-results.json
+   ```
 
 The low-level `generate` command is also available for preparing test source, but its output is intentionally not eligible for the approval-gated `run` command.
 
@@ -81,6 +87,8 @@ Negative-case proposals are created for documented 4xx responses, including thei
 
 Each Playwright run writes a machine-readable JSON summary with stable case IDs, pass/fail/skip status, duration, request method and path template, expected/actual HTTP statuses when available, and a redacted failure code/message and step. Raw exception text, response bodies, request headers, and concrete request URLs/query values are not included. Known API credential environment-variable values and common credential-shaped strings are redacted. The built-in HTML reporter and failure traces are disabled to avoid secondary outputs containing raw request/response data. A report write failure fails the Playwright run.
 
+The `summarize` command validates the result schema and reports counts computed from individual records, stable case IDs, and available HTTP status and numbered-step evidence. It redacts displayed text and reports observations only; it does not infer root causes. Older schema-version-1 reports without numbered-step evidence remain readable.
+
 Response JSON assertions are not parsed when the response advertises a `Content-Length` above 5 MiB. This check is a parsing guard, not a transport-level response-size limit; Playwright can buffer the response before the assertion step.
 
 ### Specification reference and resource policy
@@ -89,7 +97,7 @@ Only internal `$ref` references (those beginning with `#`) are resolved. Externa
 
 ## Project status
 
-The deterministic foundation is implemented and verified for its current fixture coverage. Node.js 24.21.0/npm 11.19.0 dependencies are installed; typecheck, build, and all 17 unit/integration tests pass. Phase 4 tests reject unapproved generated artifacts, check target and credentials before execution, require separate target/auth/execution/mutating approvals, and verify an authenticated read-only approved plan against a local mock API with plan-revision-bound results and audit events. The [HTML onboarding guide](./ONBOARDING.html) demonstrates review and a read-only live Petstore smoke test. Verified on 2026-10-08 against Petstore's live Swagger 2.0 spec: `TC-GETINVENTORY-POS-200` passed at `https://petstore.swagger.io/v2/store/inventory`; no mutation requests were run. The separate bundled OpenAPI 3 sample uses `/v1/pets`, which returned 404 on the current live service, so the guide downloads the actual v2 spec for its live step. Phases 1-4 are complete and merged. Model/provider decisions remain deferred pending service-line guidance. See [the phased backlog](./BACKLOG.md) for current statuses and demo exit criteria.
+The deterministic foundation is implemented and verified for its current fixture coverage. Typecheck, build, and all 20 unit/integration tests pass. Phase 4 tests reject unapproved generated artifacts, check target and credentials before execution, require separate target/auth/execution/mutating approvals, and verify an authenticated read-only approved plan against a local mock API with plan-revision-bound results and audit events. AGT-07 result interpretation reports recorded outcomes and step evidence without inferring causes. The [HTML onboarding guide](./ONBOARDING.html) demonstrates review and a read-only live Petstore smoke test. Verified on 2026-10-08 against Petstore's live Swagger 2.0 spec: `TC-GETINVENTORY-POS-200` passed at `https://petstore.swagger.io/v2/store/inventory`; no mutation requests were run. The separate bundled OpenAPI 3 sample uses `/v1/pets`, which returned 404 on the current live service, so the guide downloads the actual v2 spec for its live step. Phases 1-4 are complete and merged. Model/provider decisions remain deferred pending service-line guidance. See [the phased backlog](./BACKLOG.md) for current statuses and demo exit criteria.
 
 ## Implementation phases
 

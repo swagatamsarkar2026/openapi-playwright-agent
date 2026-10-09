@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { Command } from "commander";
 import { createInterface } from "node:readline";
 import { relative, resolve } from "node:path";
@@ -13,6 +14,7 @@ import type { PlannedTestCase } from "./model.js";
 import { buildTestPlan } from "./openapi.js";
 import { writeGeneratedTests, writePlan } from "./generator.js";
 import { redactSensitiveText } from "./redaction.js";
+import { formatRunSummary } from "./run-summary.js";
 
 const program = new Command();
 program
@@ -277,6 +279,20 @@ program.command("run")
     } finally {
       prompt.close();
     }
+  });
+
+program.command("summarize")
+  .description("Interpret recorded outcomes from an API run results file.")
+  .requiredOption("--results <file>", "Machine-readable API results JSON file")
+  .action(async options => {
+    const resultsText = await readFile(resolve(options.results), "utf8");
+    let results: unknown;
+    try {
+      results = JSON.parse(resultsText);
+    } catch {
+      throw new Error("The API results file is not valid JSON.");
+    }
+    console.log(formatRunSummary(results));
   });
 
 await program.parseAsync();

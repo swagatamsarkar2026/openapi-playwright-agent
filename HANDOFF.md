@@ -4,7 +4,7 @@
 
 OpenAPI Playwright Agent: a generic API testing project whose long-term goal is an agentic service-line demo application. The current implementation is a deterministic TypeScript CLI scaffold for preparing reviewable API test plans and generating Playwright API tests from Swagger/OpenAPI specifications; it is not yet an LLM-powered or conversational app.
 
-Project root: `C:\Workspace\openapi-playwright-agent`
+Project root: `/Users/ravikaranpilli/Documents/Apexon_Capstone_2026/openapi-playwright-agent`
 
 ## Source control and collaboration
 
@@ -18,7 +18,7 @@ Project root: `C:\Workspace\openapi-playwright-agent`
 
 - Supports Swagger 2.0 and OpenAPI 3.0/3.1 JSON or YAML inputs.
 - Petstore is only a sample fixture in `examples\petstore\openapi.yaml`; behavior is intended to be spec-driven.
-- Workflow: analyze a spec and write a Markdown plan, generate Playwright TypeScript tests, then run them against a configured API.
+- Workflow: analyze a spec and write a Markdown plan, review and approve cases, generate Playwright TypeScript tests, run an approved plan, and summarize its recorded results.
 - Each generated test case has a stable ID, positive/negative/manual-review classification, automation status, risk, preconditions, sample provenance, numbered steps with expected results, and review notes.
 - Each documented 2xx response becomes an automated positive case. Documented 4xx responses become manual-review negative test proposals because safe error-triggering inputs cannot generally be inferred from the response declarations alone.
 - Mutating operations are opt-in at test generation and execution.
@@ -34,7 +34,7 @@ Implementation is split into gated phases 0-6 in `BACKLOG.md`. Phases 0-4 are co
 
 ## Environment and next steps
 
-After restarting VS Code, Node.js 24.21.0 is available on PATH. npm 11.19.0 is installed and `npm.cmd` works. In PowerShell, `npm` resolves to `npm.ps1`, which is blocked by the current execution policy; use `npm.cmd` and `npx.cmd` in commands. Dependencies were installed with `npm install` (0 reported vulnerabilities).
+Current environment: Node.js 20.20.2 and npm 10.8.2 on macOS. Dependencies were restored from `package-lock.json` with `npm ci` (0 reported vulnerabilities).
 
 Verified from the project root on 2026-10-08:
 
@@ -44,9 +44,9 @@ npm.cmd test
 npm.cmd run build
 ```
 
-All three commands passed; `npm test` reports 17 passing tests. In addition to the earlier engine and guided-flow cases, the suite covers execution metadata/source integrity, target validation, required credential preflight without value disclosure, unapproved artifact refusal, explicit target/execution/mutation approval gates, and plan-bound results/audit. A temporary authenticated local mock API verified the approved read-only path, and a declined-target attempt made zero requests. Separately, the onboarding smoke test passed against the live Petstore read-only inventory endpoint using its documented public sample key; no mutation calls were made.
+All three commands passed; `npm test` reports 20 passing tests. The suite covers execution metadata/source integrity, target validation, required credential preflight without value disclosure, unapproved artifact refusal, explicit target/execution/mutation approval gates, plan-bound results/audit, and result-summary schema, step evidence, redaction, and timeout labels. A temporary authenticated local mock API verified the approved read-only path, and a declined-target attempt made zero requests. Separately, the onboarding smoke test passed against the live Petstore read-only inventory endpoint using its documented public sample key; no mutation calls were made.
 
-Current roadmap: Phases 0-4 are complete and merged. The current task branch is for the Petstore HTML onboarding guide and its read-only live smoke-test verification. Phase 5 model/provider work remains deferred until service-line guidance; Phase 6 demo readiness can proceed without a model. Continue the Git flow with a fresh feature branch from current `develop`, PR into `develop`, then promote to `main`. Do not commit directly to shared branches.
+Current roadmap: Phases 0-4 are complete. AGT-07 deterministic result summarization is implemented and verified on local branch `feature/guided-result-interpretation`, based on `origin/develop` at `bc57ab7`. The remote `main` tip is `57524a9`; it is a merge-only commit whose source tree matches `develop`. No changes have been committed or pushed, and neither shared branch was modified directly. Keep follow-up changes on the feature branch and target a PR into `develop`; promote to `main` only after integration is stable. AGT-09 still needs an authorized non-production demo target and reset plan; AGT-10 safety/quality coverage remains open. Phase 5 model/provider work remains deferred until service-line guidance.
 
 Running API tests requires a reachable, authorized target service and any required credentials. Browser binaries are not required because Playwright is used for API requests, not browser automation. Analysis accepts internal `$ref` values only; external local/remote references are rejected and must be inlined or bundled. See README for the input/resource limits and result-report policy.
 
@@ -59,6 +59,7 @@ Running API tests requires a reachable, authorized target service and any requir
 - `src\openapi.ts` — spec validation, normalization, and test-plan derivation
 - `src\generator.ts` — test and plan generation
 - `src\run-reporter.ts` — machine-readable Playwright result output and safe failure diagnostics
+- `src\run-summary.ts` — schema-validated, redacted interpretation of recorded run results
 - `src\spec-safety.ts` — specification resource and reference bounds
 - `src\redaction.ts` — credential redaction for result summaries and guided audit identifiers
 - `src\guided-workflow.ts` — typed review, selection, plan approval, audit, generation, and execution events

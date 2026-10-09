@@ -170,6 +170,7 @@ async function attachDiagnostic(
   testInfo: TestInfo,
   testCase: GeneratedCase,
   stepKind: string,
+  stepNumber: number,
   code: string,
   message: string,
   actualStatus?: number
@@ -180,6 +181,7 @@ async function attachDiagnostic(
       method: testCase.method.toUpperCase(),
       pathTemplate: testCase.path,
       stepKind,
+      stepNumber,
       ...(testCase.expectedStatus === undefined ? {} : { expectedStatus: testCase.expectedStatus }),
       ...(actualStatus === undefined ? {} : { actualStatus }),
       code,
@@ -203,10 +205,12 @@ for (const testCase of cases) {
     const cookies: string[] = [];
     let response: APIResponse | undefined;
     let activeStepKind = "test-setup";
+    let activeStepNumber = 0;
 
     try {
       for (const [index, step] of testCase.steps.entries()) {
         activeStepKind = step.kind;
+        activeStepNumber = index + 1;
         await test.step(\`\${index + 1}. \${step.action}\`, async () => {
           if (step.kind === "prepare-url") {
             const baseUrl = process.env.API_BASE_URL ?? defaultBaseUrl;
@@ -280,7 +284,7 @@ for (const testCase of cases) {
           }
         });
       }
-      await attachDiagnostic(testInfo, testCase, activeStepKind, "passed", "API test passed.", response?.status());
+      await attachDiagnostic(testInfo, testCase, activeStepKind, activeStepNumber, "passed", "API test passed.", response?.status());
     } catch (error) {
       const actualStatus = response?.status();
       const isStatusMismatch = activeStepKind === "assert-status"
@@ -308,7 +312,7 @@ for (const testCase of cases) {
             : code === "response-too-large"
               ? "Response Content-Length exceeds the 5 MiB JSON assertion limit."
               : \`The API test failed during the \${activeStepKind} step.\`;
-      await attachDiagnostic(testInfo, testCase, activeStepKind, code, message, actualStatus);
+      await attachDiagnostic(testInfo, testCase, activeStepKind, activeStepNumber, code, message, actualStatus);
       throw new Error(message);
     }
   });
