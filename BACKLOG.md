@@ -65,7 +65,7 @@ Phase 1 verification: 9 unit tests, typecheck, build, generated-test TypeScript 
 - [x] Require separate explicit approval for target, authentication, and execution; require a separate opt-in and confirmation for mutating cases (AGT-05).
 - [x] Bind execution metadata, audit events, and result summaries to guided plan ID/revision and spec/target fingerprints; preserve redacted result reporting.
 - [x] Implement bounded deterministic orchestration with a single generated test file, fixed Playwright entry point, per-test timeout, 10-minute process cap, and local audit of approvals/outcomes (AGT-06).
-- **Verification:** unapproved artifacts, declined targets, and missing credentials are rejected before API invocation; mutation approval is independently required; an authenticated read-only plan passed against an isolated local mock with plan-bound results and audit. Typecheck, all 17 tests, build, and diff checks pass. No external target has been exercised.
+- **Verification at Phase 4 completion:** unapproved artifacts, declined targets, and missing credentials are rejected before API invocation; mutation approval is independently required; an authenticated read-only plan passed against an isolated local mock with plan-bound results and audit. Typecheck, all 17 tests in the suite at that point, build, and diff checks passed. No external target had been exercised.
 - **Exit:** tests prove unapproved plans, targets, and mutating operations cannot reach the API; no arbitrary shell execution is exposed.
 
 ### Phase 4 follow-up — Petstore onboarding
@@ -135,10 +135,12 @@ The near-term target is a deterministic, provider-neutral MVP1 guided CLI. No LL
 | AGT-04 | P0 | Add grounded test-case explanation and selection | Complete; Phase 3 | Every contract assertion links to spec evidence or is labeled as a proposal; user can include/exclude candidates and approve before generation. |
 | AGT-05 | P0 | Add execution approval policy | Complete; Phase 4 | No request is sent until the user confirms an authorized target; mutating tests need separate explicit approval and a non-production target. MVP1 does not run tests. |
 | AGT-06 | P1 | Implement bounded orchestration with audit trail | Complete; Phase 4 | Record tool calls, approvals, plan changes, and outcomes; use bounded deterministic tools; model output, if added, is schema-validated and cannot invoke shell commands. |
-| AGT-07 | P1 | Add guided result interpretation | Verified (2026-10-08) | Summarize pass/fail/skip by stable case ID, cite available numbered-step and HTTP status evidence, distinguish recorded observations from hypotheses, redact displayed text, and do not fabricate causes. |
+| AGT-07 | P1 | Add guided result interpretation | Verified on local combined branch (2026-10-09); not merged to develop/main | Summarize pass/fail/skip by stable case ID, cite available numbered-step and HTTP status evidence, distinguish recorded observations from hypotheses, redact displayed text, and do not fabricate causes. Integration remains open. |
 | AGT-08 | P1 | Implement deterministic guided CLI MVP1 | Complete; Phase 3 | User can complete the spec-to-approved-plan-to-test-generation workflow using guided prompts without editing generated files manually; no model or API request is required. |
 | AGT-09 | P1 | Prepare safe demo dataset/spec and scripted walkthrough | Not started | Reproducible demo uses a non-production target, known credentials or mock auth, representative positive/negative cases, and documented reset/cleanup. |
-| AGT-10 | P1 | Add agent-specific quality, safety, and usability tests | Not started; blocked on AGT-03/AGT-06 | Tests cover prompt injection in specs, unsupported claims, approval bypass, secret leakage, tool argument validation, interruptions, and clear result summaries. |
+| AGT-10 | P1 | Add agent-specific quality, safety, and usability tests | In progress (2026-10-09) | Tests cover prompt injection in specs, unsupported claims, approval bypass, secret leakage, tool argument validation, interruptions, and clear result summaries. |
+
+**AGT-10 progress (2026-10-09):** The local `feature/agt-07-10-result-quality` branch combines result-summary coverage with tests proving spec-embedded instruction text cannot approve a plan and Ctrl+C during guided review cancels without generating output. The combined branch passes typecheck, build, and all 22 tests. The work is not yet merged, and the remaining AGT-10 acceptance matrix is still open.
 
 ## Service-line demo exit criteria
 

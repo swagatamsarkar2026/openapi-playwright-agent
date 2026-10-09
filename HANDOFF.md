@@ -4,7 +4,7 @@
 
 OpenAPI Playwright Agent: a generic API testing project whose long-term goal is an agentic service-line demo application. The current implementation is a deterministic TypeScript CLI scaffold for preparing reviewable API test plans and generating Playwright API tests from Swagger/OpenAPI specifications; it is not yet an LLM-powered or conversational app.
 
-Project root: `/Users/ravikaranpilli/Documents/Apexon_Capstone_2026/openapi-playwright-agent`
+Project root: repository root (`openapi-playwright-agent`)
 
 ## Source control and collaboration
 
@@ -18,7 +18,7 @@ Project root: `/Users/ravikaranpilli/Documents/Apexon_Capstone_2026/openapi-play
 
 - Supports Swagger 2.0 and OpenAPI 3.0/3.1 JSON or YAML inputs.
 - Petstore is only a sample fixture in `examples\petstore\openapi.yaml`; behavior is intended to be spec-driven.
-- Workflow: analyze a spec and write a Markdown plan, review and approve cases, generate Playwright TypeScript tests, run an approved plan, and summarize its recorded results.
+- Workflow: analyze a spec and write a Markdown plan, guide review and approval, generate Playwright TypeScript tests, run approved tests against an authorized target, and summarize recorded results. AGT-07 result summaries and AGT-10 safety tests are combined on a local feature branch and are not yet merged to `develop`.
 - Each generated test case has a stable ID, positive/negative/manual-review classification, automation status, risk, preconditions, sample provenance, numbered steps with expected results, and review notes.
 - Each documented 2xx response becomes an automated positive case. Documented 4xx responses become manual-review negative test proposals because safe error-triggering inputs cannot generally be inferred from the response declarations alone.
 - Mutating operations are opt-in at test generation and execution.
@@ -34,19 +34,19 @@ Implementation is split into gated phases 0-6 in `BACKLOG.md`. Phases 0-4 are co
 
 ## Environment and next steps
 
-Current environment: Node.js 20.20.2 and npm 10.8.2 on macOS. Dependencies were restored from `package-lock.json` with `npm ci` (0 reported vulnerabilities).
+Current environment: macOS with Node.js 20.20.2 and npm 10.8.2. Dependencies were restored from `package-lock.json` with `npm ci` (0 reported vulnerabilities).
 
 Verified from the project root on 2026-10-08:
 
-```powershell
-npm.cmd run typecheck
-npm.cmd test
-npm.cmd run build
+```sh
+npm run typecheck
+npm test
+npm run build
 ```
 
-All three commands passed; `npm test` reports 20 passing tests. The suite covers execution metadata/source integrity, target validation, required credential preflight without value disclosure, unapproved artifact refusal, explicit target/execution/mutation approval gates, plan-bound results/audit, and result-summary schema, step evidence, redaction, and timeout labels. A temporary authenticated local mock API verified the approved read-only path, and a declined-target attempt made zero requests. Separately, the onboarding smoke test passed against the live Petstore read-only inventory endpoint using its documented public sample key; no mutation calls were made.
+On 2026-10-09, the combined local branch passed `npm run typecheck`, `npm test` (22 passing tests), and `npm run build`. Coverage includes result-summary schema, stable IDs, step/HTTP evidence, redaction and timeout labels, plus spec-instruction rejection and SIGINT cancellation without test generation. The live Petstore read-only inventory smoke test passed on 2026-10-08; no mutation calls were made.
 
-Current roadmap: Phases 0-4 are complete. AGT-07 deterministic result summarization is implemented and verified on local branch `feature/guided-result-interpretation`, based on `origin/develop` at `bc57ab7`. The remote `main` tip is `57524a9`; it is a merge-only commit whose source tree matches `develop`. No changes have been committed or pushed, and neither shared branch was modified directly. Keep follow-up changes on the feature branch and target a PR into `develop`; promote to `main` only after integration is stable. AGT-09 still needs an authorized non-production demo target and reset plan; AGT-10 safety/quality coverage remains open. Phase 5 model/provider work remains deferred until service-line guidance.
+Current roadmap: Phases 0-4 are complete and merged. The active local integration branch `feature/agt-07-10-result-quality` combines AGT-07 result summaries with AGT-10 safety tests, based on `origin/develop` at `bc57ab7`. The source branches remain available as local checkpoints. The combined changes are validated locally but not pushed or merged; neither `develop` nor `main` was changed. AGT-09 still needs an authorized non-production demo target and reset plan. Phase 5 model/provider decisions remain deferred until service-line guidance. Use feature branches and PRs; do not commit directly to shared branches.
 
 Running API tests requires a reachable, authorized target service and any required credentials. Browser binaries are not required because Playwright is used for API requests, not browser automation. Analysis accepts internal `$ref` values only; external local/remote references are rejected and must be inlined or bundled. See README for the input/resource limits and result-report policy.
 
@@ -64,6 +64,7 @@ Running API tests requires a reachable, authorized target service and any requir
 - `src\redaction.ts` — credential redaction for result summaries and guided audit identifiers
 - `src\guided-workflow.ts` — typed review, selection, plan approval, audit, generation, and execution events
 - `src\execution.ts` — approved-plan metadata, target validation, credential requirements, and generated-file path policy
+- `tsconfig.json` — TypeScript configuration, including explicit Node.js ambient types
 - `ONBOARDING.html` — visual Petstore onboarding for Swagger intake, review, approval, and safe live execution
 - `src\model.ts` — normalized plan and operation types
 - `src\cli.test.ts` — scaffold tests, including Swagger 2.0 and OpenAPI 3.1 coverage
