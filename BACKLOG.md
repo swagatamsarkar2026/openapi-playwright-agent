@@ -116,7 +116,7 @@ Phase 1 verification: 9 unit tests, typecheck, build, generated-test TypeScript 
 1. Keep OpenAI drafting out of the demo. Do not send private specifications or objectives; any future private-data deployment needs an applicable data-retention/privacy review.
 2. Finish and verify the manual-case drafting slice, then define the human review and controlled automation-promotion step.
 3. The full Petstore review, guarded Petstore live read, mock inventory/order lifecycle, and Frankfurter live read are documented. A fresh-install copy passed the clean rehearsal on 2026-10-11; next have a colleague run the walkthrough from their clean setup and record acceptance. Do not use public Petstore for a mutation.
-4. Continue implementation and verification locally; defer pushing the feature branch and opening a pull request until GitHub access is available and the demo is ready.
+4. The result-quality feature branch was merged into `develop` by MR #11 on 2026-10-12. Review the follow-up handoff/runbook documentation through its own pull request; keep AGT-10 as a separate open quality gate.
 
 ## Implemented foundation
 
