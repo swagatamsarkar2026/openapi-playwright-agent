@@ -10,7 +10,7 @@ Project root: repository root (`openapi-playwright-agent`)
 
 The next Phase 6 action is an independent clean-setup acceptance run by a colleague. Use [`docs/service-line-demo-instructions.md`](./docs/service-line-demo-instructions.md) as the presenter runbook; it contains setup checks, the deterministic Petstore mock walkthrough, the optional mock-only order-write/cleanup segment, expected outcomes, and troubleshooting. The [Petstore walkthrough](./docs/petstore-demo-walkthrough.md) and [Frankfurter runbook](./docs/frankfurter-demo.md) hold the detailed target boundaries and recorded evidence.
 
-Important transfer detail: this workspace is on `feature/agt-07-10-result-quality`, three commits ahead of `origin/develop`, with additional modified and untracked project files. The latest demo materials and prototype changes are not available from the remote branch. A colleague must receive the current project snapshot through an approved local handoff before claiming acceptance; the 2026-10-11 fresh-copy rehearsal was performed by the project owner and does not satisfy colleague acceptance. Do not push, stage, or commit as part of this handoff.
+Important transfer detail: the current project snapshot is committed on `feature/agt-07-10-result-quality` but is not yet available remotely. A push attempt was rejected because the cached GitHub credential lacks repository access. Retry after authenticating an account with access, or transfer the current snapshot to the colleague through an approved local handoff. Keep `.vscode/` and `SESSION_CONTEXT.md` local; they are not part of the project handoff. The 2026-10-11 fresh-copy rehearsal was performed by the project owner and does not satisfy colleague acceptance.
 
 Ask the colleague to run the documented setup checks from a clean copy, complete the core loopback-mock inventory case, and record their environment, commands, outcomes, and any deviations in `BACKLOG.md`. The order-write segment is optional and must remain bound to `http://127.0.0.1:4010/v2`; never send a mutation to public Petstore. Keep OpenAI drafting disabled, use no private inputs or real credentials, and retain any run artifacts under `/tmp`.
 
@@ -18,8 +18,8 @@ Ask the colleague to run the documented setup checks from a clean copy, complete
 
 - GitHub repository: `https://github.com/<organization>/<repository>`
 - `main` is the stable branch; `develop` is the shared integration branch.
-- Continue implementation, execution, and demo work locally on the current feature branch. The user does not currently have GitHub access and plans to consider pushing only after the local project and demo are ready.
-- Do not push or open a pull request unless the user later requests it. Do not commit directly to `develop` or `main`.
+- Continue implementation and demo work on the current feature branch. GitHub access was recently granted, but the first push attempt used a cached account without repository permission; authenticate the authorized account before retrying.
+- Push only the feature branch when authentication is corrected and do not commit directly to `develop` or `main`. Open a pull request into `develop` only when requested.
 - README contains the step-by-step Git commands. Configure branch protection and required reviews/checks in GitHub settings.
 
 ## Current scope

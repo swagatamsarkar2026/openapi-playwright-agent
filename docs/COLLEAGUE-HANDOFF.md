@@ -12,7 +12,7 @@ The default demo is deterministic and does not use OpenAI. Verified examples inc
 
 The remaining Phase 6 gate is a colleague's independent clean-setup walkthrough and recorded acceptance. Broader AGT-10 safety/quality coverage remains open separately. No live OpenAI request and no mutation to public Petstore have been made. Do not send private specifications, objectives, credentials, or customer data to an external model.
 
-**Source handoff warning:** this workspace is on `feature/agt-07-10-result-quality`, three commits ahead of `origin/develop`, with additional modified and untracked files. The current demo source is not available from the remote branch. The colleague must receive the current project snapshot through an approved local transfer before running acceptance. The owner's 2026-10-11 clean-copy rehearsal is prior evidence, not colleague acceptance. Do not push, stage, or commit as part of this handoff.
+**Source handoff warning:** the current project snapshot is committed on `feature/agt-07-10-result-quality` but is not yet available remotely; a push attempt failed because the cached GitHub credential lacks repository access. Retry after authenticating an account with access, or transfer this snapshot through an approved local method. `.vscode/` and `SESSION_CONTEXT.md` remain local and are excluded. The owner's 2026-10-11 clean-copy rehearsal is prior evidence, not colleague acceptance.
 
 ## Setup and Checks
 
