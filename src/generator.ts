@@ -38,6 +38,7 @@ type GeneratedCase = {
   }>;
   body?: unknown;
   bodyContentType?: string;
+  bodySource?: string;
   expectedStatus?: number;
   responseExpectation?: {
     status: number;
@@ -70,7 +71,7 @@ type SchemaExpectation = {
   maximum?: number;
   minLength?: number;
   maxLength?: number;
-  requiredProperties: Array<{ name: string; schema?: SchemaExpectation }>;
+  requiredProperties?: Array<{ name: string; schema?: SchemaExpectation }>;
   items?: SchemaExpectation;
 };
 
@@ -148,7 +149,7 @@ function assertResponseSchema(value: unknown, schema: SchemaExpectation, locatio
     if (schema.minLength !== undefined) expect(value.length, location).toBeGreaterThanOrEqual(schema.minLength);
     if (schema.maxLength !== undefined) expect(value.length, location).toBeLessThanOrEqual(schema.maxLength);
   }
-  for (const property of schema.requiredProperties) {
+  for (const property of schema.requiredProperties ?? []) {
     expect(value, location).toHaveProperty(property.name);
     if (property.schema && value !== null && typeof value === "object") {
       assertResponseSchema((value as Record<string, unknown>)[property.name], property.schema, \`\${location}.\${property.name}\`);
