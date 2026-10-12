@@ -12,21 +12,21 @@ The default demo is deterministic and does not use OpenAI. Verified examples inc
 
 The remaining Phase 6 gate is a colleague's independent clean-setup walkthrough and recorded acceptance. Broader AGT-10 safety/quality coverage remains open separately. No live OpenAI request and no mutation to public Petstore have been made. Do not send private specifications, objectives, credentials, or customer data to an external model.
 
-**Source handoff warning:** the current project snapshot is committed on `feature/agt-07-10-result-quality` but is not yet available remotely; a push attempt failed because the cached GitHub credential lacks repository access. Retry after authenticating an account with access, or transfer this snapshot through an approved local method. `.vscode/` and `SESSION_CONTEXT.md` remain local and are excluded. The owner's 2026-10-11 clean-copy rehearsal is prior evidence, not colleague acceptance.
+**Source handoff status (2026-10-12):** commit `866fc2b` was merged into `develop` by MR #11. The PowerShell handoff and runbook corrections are on the follow-up branch `docs/demo-runbook-handoff` and should be reviewed through a separate pull request. `.vscode/settings.json` and `SESSION_CONTEXT.md` are local-only and are not part of the branch. The owner's 2026-10-11 clean-copy rehearsal is prior evidence, not colleague acceptance.
 
 ## Setup and Checks
 
 Use Node.js 20 or newer. Run from the repository root. `npm ci` installs the lockfile-pinned dependencies; browser binaries are not needed for these API requests.
 
-```sh
-npm ci
-npm test
-npm run typecheck
-npm run build
-npx playwright test --list --reporter=list
+```powershell
+npm.cmd ci
+npm.cmd test
+npm.cmd run typecheck
+npm.cmd run build
+npx.cmd playwright test --list --reporter=list
 ```
 
-The latest recorded project checkpoint reports 32 passing unit tests, successful typecheck and build, and discovery of 3 generated specs. In the owner's fresh-copy rehearsal, additional guided cases had been generated before discovery, which then listed 7 specs. Discovery counts depend on which generated files are present; `--list` does not send API requests. Record the actual output from the colleague's copy rather than assuming the historical count.
+Current Windows verification on 2026-10-12: `npm test` completed with 31 passing, 0 failing, and 1 skipped test. The skipped SIGINT child-process test documents a Windows signal-delivery limitation; EOF cancellation coverage still runs. Typecheck and build passed. Playwright discovery listed 52 tests in 7 files because this checkout has local generated specs; `--list` does not send API requests. These checks used the existing dependency installation, not a fresh `npm ci`. The 2026-10-11 clean-copy rehearsal is separate historical evidence. Discovery counts depend on generated files present, so record the actual output from the colleague's clean copy.
 
 ## Demo Materials and Sequence
 
@@ -47,49 +47,45 @@ The order-write segment is optional. Never change its loopback base URL to publi
 
 Start Terminal A from the repository root and leave it running:
 
-```sh
-npm run mock:petstore
+```powershell
+npm.cmd run mock:petstore
 ```
 
 Expected listener: `http://127.0.0.1:4010/v2`. The mock implements inventory and order routes only; it is not a complete Petstore service.
 
 In Terminal B, fetch the current Swagger 2.0 contract and produce a local analysis plan. Fetching the specification and analyzing it do not call an API operation:
 
-```sh
-curl -fsSL https://petstore.swagger.io/v2/swagger.json -o /tmp/petstore-demo-swagger.json
-npx tsx src/cli.ts analyze \
-  --spec /tmp/petstore-demo-swagger.json \
-  --out /tmp/petstore-demo-plan.md
+```powershell
+$specPath = Join-Path $env:TEMP 'petstore-demo-swagger.json'
+$planPath = Join-Path $env:TEMP 'petstore-demo-plan.md'
+$guidedAudit = Join-Path $env:TEMP 'petstore-demo-guided.jsonl'
+curl.exe -fsSL https://petstore.swagger.io/v2/swagger.json -o $specPath
+npx.cmd tsx src/cli.ts analyze --spec $specPath --out $planPath
 ```
 
 Start guided review against that exact input:
 
-```sh
-npx tsx src/cli.ts guide \
-  --spec /tmp/petstore-demo-swagger.json \
-  --objective "Validate the Petstore inventory read operation" \
-  --out tests/generated/petstore-demo-inventory.spec.ts \
-  --audit /tmp/petstore-demo-guided.jsonl
+```powershell
+npx.cmd tsx src/cli.ts guide --spec $specPath --objective "Validate the Petstore inventory read operation" --out tests/generated/petstore-demo-inventory.spec.ts --audit $guidedAudit
 ```
 
 At case selection, enter `TC-GETINVENTORY-POS-200`. Inspect the evidence, expected HTTP 200, request inputs, and authentication requirement; then enter `APPROVE`. The `guide` command does not call the API under test.
 
 Run the newly approved artifact only against the loopback mock:
 
-```sh
-API_KEY_API_KEY=local-mock-key npx tsx src/cli.ts run \
-  --base-url http://127.0.0.1:4010/v2 \
-  --file tests/generated/petstore-demo-inventory.spec.ts \
-  --results /tmp/petstore-demo-inventory-results.json \
-  --html-report /tmp/petstore-demo-inventory-report.html \
-  --audit /tmp/petstore-demo-inventory-run.jsonl
+```powershell
+$env:API_KEY_API_KEY = 'local-mock-key'
+$inventoryResults = Join-Path $env:TEMP 'petstore-demo-inventory-results.json'
+$inventoryReport = Join-Path $env:TEMP 'petstore-demo-inventory-report.html'
+$inventoryAudit = Join-Path $env:TEMP 'petstore-demo-inventory-run.jsonl'
+npx.cmd tsx src/cli.ts run --base-url http://127.0.0.1:4010/v2 --file tests/generated/petstore-demo-inventory.spec.ts --results $inventoryResults --html-report $inventoryReport --audit $inventoryAudit
 ```
 
 At the CLI prompts, confirm the target with `AUTHORIZED NON-PRODUCTION`, the mock credential with `AUTHENTICATION CONFIGURED`, and execution with `RUN APPROVED`. Expected result: one passing inventory case, expected/actual HTTP 200, zero failures, zero skips, and no mutations. Then summarize the stored result without making another request:
 
-```sh
-npx tsx src/cli.ts summarize \
-  --results /tmp/petstore-demo-inventory-results.json
+```powershell
+npx.cmd tsx src/cli.ts summarize --results $inventoryResults
+Remove-Item Env:API_KEY_API_KEY
 ```
 
 Keep generated results, reports, and audit logs under `/tmp`; Playwright clears the repository `test-results` directory when a run starts.
@@ -98,31 +94,25 @@ Keep generated results, reports, and audit logs under `/tmp`; Playwright clears 
 
 With the mock running, fetch the current contract if needed and guide a fresh order case:
 
-```sh
-curl -fsSL https://petstore.swagger.io/v2/swagger.json -o /tmp/petstore-demo-swagger.json
-npx tsx src/cli.ts guide \
-  --spec /tmp/petstore-demo-swagger.json \
-  --objective "Validate order creation against the isolated Petstore mock" \
-  --out tests/generated/petstore-demo-order.spec.ts \
-  --audit /tmp/petstore-demo-order-guided.jsonl
+```powershell
+curl.exe -fsSL https://petstore.swagger.io/v2/swagger.json -o $specPath
+$orderGuidedAudit = Join-Path $env:TEMP 'petstore-demo-order-guided.jsonl'
+npx.cmd tsx src/cli.ts guide --spec $specPath --objective "Validate order creation against the isolated Petstore mock" --out tests/generated/petstore-demo-order.spec.ts --audit $orderGuidedAudit
 ```
 
 Select only `TC-PLACEORDER-POS-200`, inspect it, and enter `APPROVE`. Run it against the mock with the separate mutation opt-in:
 
-```sh
-npx tsx src/cli.ts run \
-  --base-url http://127.0.0.1:4010/v2 \
-  --file tests/generated/petstore-demo-order.spec.ts \
-  --include-mutating \
-  --results /tmp/petstore-demo-order-results.json \
-  --html-report /tmp/petstore-demo-order-report.html \
-  --audit /tmp/petstore-demo-order-run.jsonl
+```powershell
+$orderResults = Join-Path $env:TEMP 'petstore-demo-order-results.json'
+$orderReport = Join-Path $env:TEMP 'petstore-demo-order-report.html'
+$orderAudit = Join-Path $env:TEMP 'petstore-demo-order-run.jsonl'
+npx.cmd tsx src/cli.ts run --base-url http://127.0.0.1:4010/v2 --file tests/generated/petstore-demo-order.spec.ts --include-mutating --results $orderResults --html-report $orderReport --audit $orderAudit
 ```
 
 Confirm `AUTHORIZED NON-PRODUCTION`, `RUN APPROVED`, and `APPROVE MUTATING CALLS`. This operation has no declared authentication requirement. Expected result: one passing case with HTTP 200. Read back order ID `1`:
 
-```sh
-curl -i http://127.0.0.1:4010/v2/store/order/1
+```powershell
+curl.exe -i http://127.0.0.1:4010/v2/store/order/1
 ```
 
 Stop the mock with Ctrl+C, restart it, and repeat the readback. It should return HTTP 404 because order state is in memory and is cleared on restart. Stop the mock again after the demo. **Never send this write to public Petstore.**
