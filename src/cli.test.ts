@@ -1475,7 +1475,11 @@ test("guide does not request AI drafts by default", async () => {
   }
 });
 
-test("SIGINT during guided review cancels without generating tests", async () => {
+test("SIGINT during guided review cancels without generating tests", {
+  skip: process.platform === "win32"
+    ? "Windows child.kill('SIGINT') terminates the child instead of delivering a catchable signal"
+    : false
+}, async () => {
   const directory = await mkdtemp(join(tmpdir(), "openapi-guided-sigint-"));
   const outputPath = join(directory, "interrupted.spec.ts");
   const auditPath = join(directory, "audit.jsonl");

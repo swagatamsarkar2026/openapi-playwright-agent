@@ -59,15 +59,21 @@
       background: var(--paper);
       box-shadow: 0 26px 80px #17232235;
     }
-    .slide.active { display: flex; flex-direction: column; }
+    .slide.active { display: flex; flex-direction: column; animation: slide-enter .35s ease-out both; }
+    .slide.active > :not(.slide-no) { animation: content-enter .42s ease-out both; }
+    .slide.active > :nth-child(2) { animation-delay: .04s; }
+    .slide.active > :nth-child(3) { animation-delay: .09s; }
+    .slide.active > :nth-child(4) { animation-delay: .14s; }
+    @keyframes slide-enter { from { opacity: .75; } to { opacity: 1; } }
+    @keyframes content-enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     .slide.dark { background: var(--dark); color: var(--paper); }
     .slide.dark p, .slide.dark .subtle { color: #c4ceca; }
     .slide::after {
       position: absolute;
-      right: -40px;
-      bottom: -58px;
-      width: 260px;
-      height: 150px;
+      right: 45px;
+      bottom: 45px;
+      width: 180px;
+      height: 100px;
       border-top: 1px solid #087f8c50;
       border-bottom: 1px solid #ee715b70;
       content: "";
@@ -87,25 +93,49 @@
     .accent { color: var(--coral); }
     .dark .accent { color: var(--mint); }
     .cover { justify-content: center; background: var(--dark); }
+    .cover-layout { display: grid; grid-template-columns: 1.2fr .8fr; align-items: center; gap: 3rem; width: 100%; }
+    .cover-main { max-width: 760px; }
     .cover .eyebrow { margin-bottom: 1.2rem; color: var(--mint); font-size: .8rem; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
     .cover h1 { max-width: 950px; font-size: 4.4rem; }
     .cover .lede { margin-bottom: 2rem; color: #d2dbd6; }
     .cover-stamp { display: inline-flex; align-items: center; gap: 10px; width: fit-content; border: 1px solid #ffffff44; padding: 9px 13px; color: #d2dbd6; font-size: .8rem; }
     .cover-stamp b { color: var(--mint); }
+    .cover-rail { border-left: 1px solid #ffffff50; background: var(--dark-2); padding: 1.25rem 1.5rem; }
+    .cover-rail-label { margin-bottom: .8rem; color: var(--coral); font-size: .7rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    .cover-stage { display: grid; grid-template-columns: 2.5rem 1fr; align-items: center; gap: .7rem; min-height: 3.4rem; border-top: 1px solid #ffffff24; }
+    .cover-stage b { color: var(--mint); font: .85rem var(--mono); }
+    .cover-stage span { color: var(--paper); font-family: var(--serif); font-size: 1.08rem; }
     .slide-no { position: absolute; right: 2rem; bottom: 1.45rem; color: #84908b; font: .75rem var(--mono); }
     .notes { margin-top: auto; padding-top: .75rem; color: #60706b; font-size: .82rem; }
     .dark .notes { color: #96a59e; }
     .notes strong { color: var(--coral); text-transform: uppercase; letter-spacing: .08em; font-size: .68rem; }
     .dark .notes strong { color: var(--mint); }
     .workflow { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 1rem 0 1.3rem; }
+    .slide.active .node { animation: content-enter .45s ease-out both; }
+    .slide.active .node:nth-child(2) { animation-delay: .08s; }
+    .slide.active .node:nth-child(3) { animation-delay: .14s; }
+    .slide.active .node:nth-child(4) { animation-delay: .2s; }
+    .slide.active .node:nth-child(5) { animation-delay: .26s; }
     .node { position: relative; min-height: 150px; border-top: 4px solid var(--teal); background: #fff; padding: 15px 13px; }
     .node:nth-child(2) { border-color: var(--coral); }
     .node:nth-child(3) { border-color: var(--yellow); }
     .node:nth-child(4) { border-color: var(--teal); }
     .node:nth-child(5) { border-color: #547d36; }
     .node .num { display: block; margin-bottom: 1rem; color: #78827d; font: .76rem var(--mono); }
-    .node strong { display: block; margin-bottom: .35rem; font-family: var(--serif); font-size: 1.14rem; line-height: 1.05; }
+    .node strong { display: block; margin-bottom: .35rem; color: var(--ink); font-family: var(--serif); font-size: 1.14rem; line-height: 1.05; }
     .node span:last-child { color: var(--muted); font-size: .83rem; }
+    .build-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: .8rem 0; }
+    .build-item { min-height: 155px; border-left: 4px solid var(--teal); background: #fff; padding: 13px 14px; }
+    .build-item:nth-child(2) { border-color: var(--coral); }
+    .build-item:nth-child(3) { border-color: var(--yellow); }
+    .build-item:nth-child(4) { border-color: #547d36; }
+    .build-item b { display: block; margin-bottom: .6rem; color: var(--teal); font: 1.15rem var(--mono); }
+    .build-item:nth-child(2) b { color: #bd4938; }
+    .build-item:nth-child(3) b { color: #896600; }
+    .build-item:nth-child(4) b { color: #416426; }
+    .build-item strong { display: block; margin-bottom: .35rem; color: var(--ink); font-family: var(--serif); font-size: 1.08rem; }
+    .build-item span { color: var(--muted); font-size: .78rem; }
+    .build-proof { display: flex; justify-content: space-between; gap: 1rem; border-top: 1px solid var(--line); padding-top: .65rem; color: var(--muted); font-size: .82rem; }
     .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 1rem 0; }
     .metric { min-height: 115px; padding: 15px; background: var(--dark-2); color: var(--paper); }
     .metric b { display: block; color: var(--mint); font: 2rem var(--serif); }
@@ -148,6 +178,16 @@
     .compact-list { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 24px; margin: .7rem 0; padding: 0; list-style: none; }
     .compact-list li { border-top: 1px solid var(--line); padding: 8px 0; color: var(--muted); }
     .compact-list b { color: var(--ink); }
+    .value-path { display: grid; grid-template-columns: 1fr 42px 1fr 42px 1fr; align-items: stretch; gap: 8px; margin: 1.1rem 0; }
+    .value-stop { display: flex; flex-direction: column; justify-content: center; min-height: 150px; border-top: 5px solid var(--teal); background: #fff; padding: 16px; }
+    .value-stop:nth-of-type(2) { border-color: var(--coral); }
+    .value-stop:nth-of-type(3) { border-color: #547d36; background: var(--dark); color: var(--paper); }
+    .value-stop small { margin-bottom: .45rem; color: var(--muted); font: 700 .7rem var(--mono); text-transform: uppercase; }
+    .value-stop:nth-of-type(3) small { color: var(--mint); }
+    .value-stop strong { font-family: var(--serif); font-size: 1.25rem; line-height: 1.12; }
+    .value-stop span { margin-top: .4rem; color: var(--muted); font-size: .8rem; }
+    .value-stop:nth-of-type(3) span { color: #d2dbd6; }
+    .value-arrow { align-self: center; color: var(--coral); font-size: 1.8rem; font-weight: 800; text-align: center; }
     .goal-slide h2 { margin-bottom: .55rem; }
     .goal-slide .lede { margin-bottom: .4rem; font-size: 1.05rem; }
     .goal-slide .compact-list { gap: 5px 18px; margin: .35rem 0; }
@@ -162,7 +202,15 @@
     .source-card:nth-child(2) { border-color: var(--coral); }
     .source-card h3 { font-family: var(--serif); font-size: 1.25rem; }
     .source-card p { margin: 5px 0; font-size: .82rem; }
+    .dark .source-card { color: var(--ink); }
+    .dark .source-card p { color: var(--muted); }
     .source-card code { display: block; margin-top: 5px; background: transparent; padding: 0; overflow-wrap: anywhere; font: .65rem/1.35 var(--mono); }
+    .resource-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 14px; margin: .6rem 0; }
+    .resource-link { display: block; border-left: 3px solid var(--teal); background: #fff; padding: 8px 10px; color: var(--ink); text-decoration: none; }
+    .resource-link:nth-child(even) { border-color: var(--coral); }
+    .resource-link:hover, .resource-link:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+    .resource-link strong { display: block; font-size: .83rem; }
+    .resource-link span { color: var(--muted); font-size: .7rem; }
     .case-table td { font-size: .72rem; }
     .bottombar { height: 54px; }
     .controls { display: flex; align-items: center; gap: 8px; }
@@ -191,6 +239,10 @@
       .hint { display: none; }
       .stage { min-height: calc(100vh - 108px); align-items: start; padding: 4px 0; }
       .slide { width: calc(100vw - 24px); min-height: calc(100vh - 120px); height: auto; aspect-ratio: auto; padding: 2rem 1.35rem 2.5rem; overflow: visible; }
+      .slide::after { display: none; }
+      .cover-layout { grid-template-columns: 1fr; gap: 1.2rem; }
+      .cover-rail { padding: .75rem 1rem; }
+      .cover-stage { min-height: 2.6rem; }
       h1, .cover h1 { font-size: 2.6rem; }
       h2 { font-size: 1.85rem; }
       .lede { font-size: 1.03rem; }
@@ -198,9 +250,17 @@
       .node { min-height: 0; display: grid; grid-template-columns: 35px 1fr; column-gap: 8px; padding: 10px; }
       .node .num { grid-row: span 2; margin: 0; }
       .node strong { margin: 0; }
+      .build-grid { grid-template-columns: 1fr 1fr; gap: 7px; }
+      .build-item { min-height: 0; padding: 10px; }
+      .build-item b { margin-bottom: .35rem; }
+      .build-proof { flex-direction: column; gap: .25rem; }
+      .value-path { grid-template-columns: 1fr; gap: 6px; margin: .6rem 0; }
+      .value-stop { min-height: 0; padding: 11px; }
+      .value-arrow { transform: rotate(90deg); font-size: 1.25rem; line-height: 1; }
       .metrics { grid-template-columns: 1fr 1fr; }
       .split, .qa { grid-template-columns: 1fr; }
       .source-grid { grid-template-columns: 1fr; gap: 8px; }
+      .resource-grid { grid-template-columns: 1fr; gap: 5px; }
       .source-card { padding: 10px; }
       .source-card p { font-size: .72rem; }
       .source-card code { font-size: .58rem; }
@@ -274,37 +334,49 @@
       pre { max-height: none; print-color-adjust: exact; }
     }
     @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
     }
   </style>
 </head>
 <body>
   <header class="topbar">
     <div class="brand"><span class="brand-mark" aria-hidden="true"></span> OpenAPI Playwright Agent</div>
-    <div class="hint">Arrow keys to navigate · N for notes · F for fullscreen</div>
+    <div class="hint">Arrow keys to navigate · End for project links · N for notes · F for fullscreen</div>
   </header>
 
   <main class="stage" id="stage" aria-label="Presentation slides">
-    <section class="slide dark cover active" aria-labelledby="slide-title-1" data-notes="Welcome. Set the frame: this is a prototype focused on traceable, controlled test generation. Today we will use a local mock for repeatable behavior and show recorded evidence from two public read-only APIs.">
-      <div class="eyebrow">Service-line demo · 15-minute walkthrough</div>
-      <h1 id="slide-title-1">From API contract<br>to <span class="accent">approved tests.</span></h1>
-      <p class="lede">A deterministic workflow for reviewing, generating, and running contract-based API tests.</p>
-      <div class="cover-stamp"><b>DEMO BOUNDARY</b><span>Public reads only · writes stay on loopback · no live AI call</span></div>
-      <span class="slide-no">01 / 13</span>
+    <section class="slide dark cover active" aria-labelledby="slide-title-1" data-notes="Open with the goal: move from the API definition a team already has to reviewed tests and useful evidence. Preview the four steps, then show concrete outcomes: Petstore inventory against live and mock, a mock-only order lifecycle, and Frankfurter latest rates.">
+      <div class="cover-layout">
+        <div class="cover-main">
+          <div class="eyebrow">OpenAPI Playwright Agent · project walkthrough</div>
+          <h1 id="slide-title-1">From API contract<br>to <span class="accent">tests your team can trust.</span></h1>
+          <p class="lede">Turn the API definition your team already owns into reviewed tests and clear execution evidence.</p>
+          <div class="cover-stamp"><b>VERIFIED</b><span>Petstore live + mock · Frankfurter live read · mock order cleanup</span></div>
+        </div>
+        <div class="cover-rail" aria-label="Project delivery path">
+          <div class="cover-rail-label">The delivery path</div>
+          <div class="cover-stage"><b>01</b><span>Understand the contract</span></div>
+          <div class="cover-stage"><b>02</b><span>Review the evidence</span></div>
+          <div class="cover-stage"><b>03</b><span>Approve and generate</span></div>
+          <div class="cover-stage"><b>04</b><span>Run and learn</span></div>
+        </div>
+      </div>
+      <span class="slide-no">01 / 15</span>
     </section>
 
-    <section class="slide goal-slide" aria-labelledby="slide-title-2" data-notes="Position the value as reviewable automation. Do not claim the prototype is a production-ready autonomous testing platform.">
+    <section class="slide goal-slide" aria-labelledby="slide-title-2" data-notes="Lead with the practical outcome: less repetitive test setup, consistent review, and traceable results. The workflow keeps decisions understandable and approvals explicit.">
       <div class="kicker">01 · The goal</div>
-      <h2 id="slide-title-2">Make API test generation <span class="accent">reviewable.</span></h2>
-      <p class="lede">Start with an existing Swagger or OpenAPI contract. Let a person decide what is safe and useful before any API request is made.</p>
-      <ul class="compact-list">
-        <li><b>Analyze</b><br>Derive stable test cases from contract facts.</li>
-        <li><b>Review</b><br>Inspect evidence, inputs, risks, and uncertainty.</li>
-        <li><b>Approve</b><br>Bind approval to the selected plan revision.</li>
-        <li><b>Verify</b><br>Run through explicit gates and summarize observations.</li>
-      </ul>
-      <p class="callout"><strong>Core message</strong>This automates the repeatable mechanics while keeping test selection and execution under human control.</p>
-      <span class="slide-no">02 / 13</span>
+      <h2 id="slide-title-2">Move from API description<br>to <span class="accent">evidence you can act on.</span></h2>
+      <p class="lede">The goal is to make API validation easier to prepare, review, repeat, and explain.</p>
+      <div class="value-path" aria-label="Contract to usable validation result">
+        <div class="value-stop"><small>Start with</small><strong>API contract</strong><span>Swagger or OpenAPI input</span></div>
+        <div class="value-arrow" aria-hidden="true">→</div>
+        <div class="value-stop"><small>Make it</small><strong>Reviewable tests</strong><span>Evidence, approval, generated checks</span></div>
+        <div class="value-arrow" aria-hidden="true">→</div>
+        <div class="value-stop"><small>Get</small><strong>Useful results</strong><span>Controlled runs, traceable outcomes</span></div>
+      </div>
+      <p class="callout"><strong>Why it matters</strong>Less repeated setup, clearer decisions, and evidence the team can act on.</p>
+      <span class="slide-no">02 / 15</span>
     </section>
 
     <section class="slide dark" aria-labelledby="slide-title-3" data-notes="Walk left to right. Guided review makes no API-under-test request. Running a generated test requires a valid approved artifact and separate target and execution confirmation; writes need one more approval.">
@@ -317,50 +389,39 @@
         <div class="node"><span class="num">04</span><strong>Guarded run</strong><span>Target and execution gates</span></div>
         <div class="node"><span class="num">05</span><strong>Result</strong><span>Redacted record and summary</span></div>
       </div>
-      <p class="subtle">The demo is deterministic. OpenAI drafting is optional, excluded here, and has not been called live.</p>
-      <span class="slide-no">03 / 13</span>
+      <p class="subtle">The core workflow is deterministic. Optional OpenAI drafting can add reviewer-facing scenario proposals within the same controlled process.</p>
+      <span class="slide-no">03 / 15</span>
     </section>
 
-    <section class="slide" aria-labelledby="slide-title-4" data-notes="Name the actual input documents, versions, fingerprints, and analyzer counts. Both contracts were analyzed locally. Case evidence pointers are tied to the matching specification fingerprint.">
-      <div class="kicker">03 · Source specifications</div>
-      <h2 id="slide-title-4">Two contracts. <span class="accent">Traceable inputs.</span></h2>
-      <div class="source-grid">
-        <article class="source-card">
-          <h3>Petstore live Swagger</h3>
-          <p>Swagger 2.0 · 20 operations · 43 cases</p>
-          <p>9 automated candidates · 34 manual-review candidates</p>
-          <code>https://petstore.swagger.io/v2/swagger.json</code>
-          <code>SHA-256 77d18c99ee7f556e8dbcaf5e80ed788e6cb1a182f37f34229e7b0d956bf4757d</code>
-        </article>
-        <article class="source-card">
-          <h3>Frankfurter official API</h3>
-          <p>OpenAPI 3.1.2 · 5 operations · 9 cases</p>
-          <p>5 automated candidates · 4 manual-review candidates</p>
-          <code>https://api.frankfurter.dev/v1/openapi.json</code>
-          <code>SHA-256 e38804965823bcbd7db06471aa6a2b8b19b4dfc5f26f95d14aae8cfad1fb46a6</code>
-        </article>
+    <section class="slide" aria-labelledby="slide-title-4" data-notes="This is the point to summarize what is already implemented before showing API evidence: contract intake, evidence-backed test plans, approved generation, guarded execution, and recorded results. It has been exercised with Swagger 2.0 Petstore and OpenAPI 3.1 Frankfurter.">
+      <div class="kicker">03 · What we built</div>
+      <h2 id="slide-title-4">A connected workflow, <span class="accent">already exercised.</span></h2>
+      <div class="build-grid">
+        <article class="build-item"><b>01 / INTAKE</b><strong>Read the contract</strong><span>Analyze Swagger 2.0 and OpenAPI 3.x inputs into stable operation and case inventories.</span></article>
+        <article class="build-item"><b>02 / PLAN</b><strong>Explain the test</strong><span>Show inputs, expected outcomes, provenance, and evidence pointers before generation.</span></article>
+        <article class="build-item"><b>03 / APPROVE</b><strong>Generate deliberately</strong><span>Bind Playwright output to the selected, explicitly approved plan revision.</span></article>
+        <article class="build-item"><b>04 / VERIFY</b><strong>Record the result</strong><span>Guard target and execution; report outcomes with stable IDs and redacted evidence.</span></article>
       </div>
-      <p class="callout"><strong>Traceability</strong>Stable case IDs, spec fingerprints, JSON pointers, input provenance, warnings, and expected results accompany review.</p>
-      <span class="slide-no">04 / 13</span>
+      <div class="build-proof"><span><strong>Petstore</strong> · Swagger 2.0 · 20 operations · 43 cases analyzed</span><span><strong>Frankfurter</strong> · OpenAPI 3.1 · 5 operations · 9 cases analyzed</span></div>
+      <span class="slide-no">04 / 15</span>
     </section>
 
-    <section class="slide" aria-labelledby="slide-title-5" data-notes="The analyzer generates manual-review entries in the plan, not executable Playwright code. TC-PLACEORDER-NEG-400 comes from a documented 400 response, but the contract supplies no safe trigger; human review defers it rather than guessing. Contrast this with the positive order candidate, which was reviewed and executed only on the loopback mock after separate mutation approval.">
+    <section class="slide" aria-labelledby="slide-title-5" data-notes="These three stable IDs make the end-to-end story concrete: inventory was run against live and mock Petstore; order creation/readback/cleanup was mock-only; Frankfurter demonstrates a second contract format and public read. Keep candidate counts distinct from executed outcomes.">
       <div class="kicker">04 · Generated case review</div>
-      <h2 id="slide-title-5">Generated candidates get <span class="accent">different dispositions.</span></h2>
+      <h2 id="slide-title-5">Contract facts become <span class="accent">reviewable test cases.</span></h2>
       <table class="status-table case-table">
-        <thead><tr><th>Case</th><th>Contract evidence</th><th>Review and outcome</th></tr></thead>
+        <thead><tr><th>Case</th><th>Purpose</th><th>Verified outcome</th></tr></thead>
         <tbody>
-          <tr><td><code>TC-GETINVENTORY-POS-200</code></td><td>GET inventory · documented 200 · `/paths/~1store~1inventory/get/responses/200`</td><td>Selected; plan revision 2 approved; generated and passed live and mock.</td></tr>
-          <tr><td><code>TC-PLACEORDER-NEG-400</code></td><td>POST order · documented 400 “Invalid Order” · `/paths/~1store~1order/post/responses/400`</td><td>Manual-review plan entry only. No safe triggering input is specified, so no executable test is generated.</td></tr>
-          <tr><td><code>TC-PLACEORDER-POS-200</code></td><td>POST order · documented 200</td><td>Reviewed and approved; generated and run on mock only after separate mutation approval; readback and cleanup verified.</td></tr>
-          <tr><td><code>TC-FINDPETSBYSTATUS-POS-200</code></td><td>GET findByStatus · documented 200; OAuth2 declared</td><td>Attempt returned 200 but schema assertion failed; not passing coverage.</td></tr>
+          <tr><td><code>TC-GETINVENTORY-POS-200</code></td><td>Validate the inventory read response</td><td>Passed against public Petstore and loopback mock.</td></tr>
+          <tr><td><code>TC-PLACEORDER-POS-200</code></td><td>Validate order creation in an isolated mock</td><td>Passed with readback and restart cleanup verified.</td></tr>
+          <tr><td><code>TC-GET-LATEST-POS-200</code></td><td>Validate an OpenAPI 3.1 read operation</td><td>Passed against Frankfurter with response-schema validation.</td></tr>
         </tbody>
       </table>
-      <p class="notes"><strong>Be precise:</strong> a manual-review candidate is a plan entry, not an executable Playwright test.</p>
-      <span class="slide-no">05 / 13</span>
+      <p class="notes"><strong>Traceability:</strong> each case has a stable ID and contract evidence; selected cases are approved before generation.</p>
+      <span class="slide-no">05 / 15</span>
     </section>
 
-    <section class="slide" aria-labelledby="slide-title-6" data-notes="Distinguish each environment explicitly. Petstore inventory and Frankfurter latest passed live. Order creation, readback, and cleanup were mock-only. The status-list case got HTTP 200 but the test failed schema validation, so do not call it a pass.">
+    <section class="slide" aria-labelledby="slide-title-6" data-notes="Separate each environment explicitly. Petstore inventory passed live and mock; the mock-only order lifecycle proved readback and restart cleanup; Frankfurter latest passed against the public API with schema validation.">
       <div class="kicker">05 · Execution evidence</div>
       <h2 id="slide-title-6">What we have <span class="accent">actually verified.</span></h2>
       <table class="status-table">
@@ -370,11 +431,10 @@
           <tr><td>Petstore loopback mock</td><td><code>GET /store/inventory</code></td><td><span class="pill">PASS · HTTP 200</span></td></tr>
           <tr><td>Petstore loopback mock</td><td><code>POST /store/order</code></td><td><span class="pill">PASS · readback 200 · restart 404</span></td></tr>
           <tr><td>Frankfurter public API</td><td><code>GET /latest</code></td><td><span class="pill">PASS · schema asserted</span></td></tr>
-          <tr><td>Petstore public API</td><td><code>GET /pet/findByStatus</code></td><td><span class="pill warn">NOT PASSING · schema assertion failed</span></td></tr>
         </tbody>
       </table>
-      <p class="notes"><strong>Say:</strong> These are scoped demonstrations, not certification of every documented operation.</p>
-      <span class="slide-no">06 / 13</span>
+      <p class="notes"><strong>Value:</strong> combine real-service confidence with repeatable local validation and traceable results.</p>
+      <span class="slide-no">06 / 15</span>
     </section>
 
     <section class="slide" aria-labelledby="slide-title-7" data-notes="The live Petstore contract currently analyzed into 20 operations and 43 cases. The guide prints a lot of candidates; select only the inventory ID. Reviewing and generating does not send a request to the Petstore API operation.">
@@ -393,7 +453,7 @@ npx tsx src/cli.ts guide \
         </div>
         <aside class="callout"><strong>What to point out</strong>Expected status, auth scheme, evidence pointer, and stable case ID. The generated artifact is tied to the approved plan revision.</aside>
       </div>
-      <span class="slide-no">07 / 13</span>
+      <span class="slide-no">07 / 15</span>
     </section>
 
     <section class="slide dark" aria-labelledby="slide-title-8" data-notes="This is the one live Petstore API operation. It is read-only. Only run it if the target is authorized and reachable. The special-key value is the documented public example. If corporate TLS interception requires a trusted CA, set NODE_EXTRA_CA_CERTS to that approved certificate; never disable certificate validation. Use recorded evidence as fallback rather than retrying repeatedly.">
@@ -412,7 +472,7 @@ npx tsx src/cli.ts guide \
         <div class="metric"><b>3</b><span>Separate run confirmations</span></div>
       </div>
       <p>Confirm target, configured authentication, and execution at the CLI prompts. If the service is unavailable, show the previously recorded pass.</p>
-      <span class="slide-no">08 / 13</span>
+      <span class="slide-no">08 / 15</span>
     </section>
 
     <section class="slide" aria-labelledby="slide-title-9" data-notes="The mock binds only to loopback and inventory is fixture-backed. Same approved inventory test and assertions; this demonstrates repeatability without depending on Petstore availability. The local key is only a mock value.">
@@ -436,7 +496,7 @@ API_KEY_API_KEY=local-mock-key npx tsx src/cli.ts run \
           <p class="callout"><strong>Interpretation</strong>Pass/fail, status, and recorded assertion step. No inferred root cause.</p>
         </div>
       </div>
-      <span class="slide-no">09 / 13</span>
+      <span class="slide-no">09 / 15</span>
     </section>
 
     <section class="slide" aria-labelledby="slide-title-10" data-notes="Optional section. Keep it on loopback only. Re-guide and approve the order case from the current spec if using the live-contract-generated case. The CLI's separate mutation prompt is expected, not an inconvenience to bypass. Restart clears the in-memory order.">
@@ -455,7 +515,7 @@ API_KEY_API_KEY=local-mock-key npx tsx src/cli.ts run \
         <li>Stop and restart mock. Readback returns HTTP 404; state was process-local.</li>
       </ol>
       <p class="callout"><strong>Never point this write at public Petstore.</strong></p>
-      <span class="slide-no">10 / 13</span>
+      <span class="slide-no">10 / 15</span>
     </section>
 
     <section class="slide dark" aria-labelledby="slide-title-11" data-notes="Frankfurter is an additional public, read-only example. It was previously run through the guarded CLI and passed schema validation. Do not claim a fresh run unless you run it in front of the audience. Re-run only if authorized and network is available; full commands are in docs/frankfurter-demo.md.">
@@ -469,40 +529,75 @@ API_KEY_API_KEY=local-mock-key npx tsx src/cli.ts run \
         <div class="metric"><b>PASS</b><span>Response-schema assertion</span></div>
       </div>
       <p>Previously verified on the public read-only endpoint. Show the recorded result by default; follow the Frankfurter runbook for an authorized fresh run.</p>
-      <span class="slide-no">11 / 13</span>
+      <span class="slide-no">11 / 15</span>
     </section>
 
-    <section class="slide" aria-labelledby="slide-title-12" data-notes="Restate the honest boundaries: no model call, no private data, no public writes, and unsupported cases remain deferred. All result claims are tied to the selected evidence; public services are not availability guarantees.">
-      <div class="kicker">11 · Limits and safeguards</div>
-      <h2 id="slide-title-12">Transparent about <span class="accent">what is not covered.</span></h2>
+    <section class="slide" aria-labelledby="slide-title-12" data-notes="Explain controls as an enabler for safe, repeatable use: generated files are tied to approved plans, targets are confirmed before calls, mutations need an additional approval, and reports retain redacted evidence.">
+      <div class="kicker">11 · Trust and control</div>
+      <h2 id="slide-title-12">Make execution <span class="accent">clear and controlled.</span></h2>
       <div class="source-grid">
-        <article class="source-card"><h3>No model call</h3><p>The demonstrated path is deterministic. No private data is sent to an external model.</p></article>
-        <article class="source-card"><h3>No public writes</h3><p>Petstore order creation and cleanup were tested on loopback only.</p></article>
-        <article class="source-card"><h3>Not every case runs</h3><p>Missing inputs, auth, or safe error triggers stay in manual review.</p></article>
-        <article class="source-card"><h3>Failures stay visible</h3><p>findByStatus returned HTTP 200 but failed schema validation; it is not a pass.</p></article>
+        <article class="source-card"><h3>Reviewed generation</h3><p>Generated tests are tied to the exact plan revision the reviewer approved.</p></article>
+        <article class="source-card"><h3>Authorized targets</h3><p>Target and authentication are confirmed before an API request is sent.</p></article>
+        <article class="source-card"><h3>Mutation gates</h3><p>State-changing tests require explicit opt-in and a separate run approval.</p></article>
+        <article class="source-card"><h3>Traceable results</h3><p>Stable case IDs and redacted reports make outcomes easier to review.</p></article>
       </div>
-      <p>Reports show recorded outcomes and evidence; they do not certify every operation or infer unsupported causes.</p>
-      <span class="slide-no">12 / 13</span>
+      <p class="callout"><strong>Benefit</strong>Teams can automate repeatable checks while keeping people in control of what runs and where.</p>
+      <span class="slide-no">12 / 15</span>
     </section>
 
-    <section class="slide" aria-labelledby="slide-title-13" data-notes="Close with a precise ask: the next API/use case, required evidence, and acceptance criteria for a pilot. Do not promise production readiness. Invite questions about auth, unsupported cases, and where a colleague would use this workflow.">
-      <div class="kicker">12 · Discussion</div>
-      <h2 id="slide-title-13">What would make this useful <span class="accent">to your team?</span></h2>
-      <div class="qa">
-        <article><h3>Is it AI-driven?</h3><p>The demonstrated flow is deterministic. No live OpenAI call.</p></article>
-        <article><h3>Why not automate every case?</h3><p>Missing inputs, auth, serialization, or success criteria stay visible for review.</p></article>
-        <article><h3>Production-ready?</h3><p>No. It is a project prototype; a colleague clean-setup acceptance run remains.</p></article>
-        <article><h3>What is next?</h3><p>Choose a pilot API, useful cases, and measurable acceptance criteria.</p></article>
+    <section class="slide dark" aria-labelledby="slide-title-13" data-notes="Describe the LLM as optional drafting assistance. It receives minimized, redacted contract-derived context only after explicit consent. Drafts are proposals, not executable tests. The provider path has mocked tests; no live OpenAI request has been made. Do not send private specifications or objectives without the required data-policy approval.">
+      <div class="kicker">12 · Optional AI-assisted drafting</div>
+      <h2 id="slide-title-13">Use an LLM to widen review, <span class="accent">not own execution.</span></h2>
+      <p class="lede">OpenAI can suggest additional scenarios from bounded contract context while the deterministic workflow remains the source of executable tests.</p>
+      <div class="source-grid">
+        <article class="source-card"><h3>Bounded context</h3><p>With explicit consent, send the objective and minimized, redacted operation summaries, documented statuses, and evidence pointers.</p></article>
+        <article class="source-card"><h3>Proposal output</h3><p>Drafts are written separately for manual review. Model-authored steps and code are never executed.</p></article>
+        <article class="source-card"><h3>Grounded promotion</h3><p>A draft may map to an exact eligible read-only case; the reviewer still selects and approves the new plan revision.</p></article>
+        <article class="source-card"><h3>Current verification</h3><p>Provider behavior and safety are covered by mocked tests. No live OpenAI request has been made.</p></article>
       </div>
-      <p class="notes"><strong>Ask:</strong> Which API and workflow should be the next pilot, and what evidence would your reviewers need?</p>
-      <span class="slide-no">13 / 13</span>
+      <p class="subtle">Private specifications and objectives require an applicable data-policy review before external inference.</p>
+      <span class="slide-no">13 / 15</span>
+    </section>
+
+    <section class="slide" aria-labelledby="slide-title-14" data-notes="Close by connecting the workflow to the team's own API and delivery process. Invite a concrete next step: choose one authorized pilot API, a representative read path, and the evidence reviewers need.">
+      <div class="kicker">13 · Team discussion</div>
+      <h2 id="slide-title-14">Where could this workflow <span class="accent">help your team?</span></h2>
+      <div class="qa">
+        <article><h3>Which API?</h3><p>Choose an authorized service and a representative workflow.</p></article>
+        <article><h3>Which checks?</h3><p>Identify the read paths and outcomes that matter most.</p></article>
+        <article><h3>What evidence?</h3><p>Agree on what reviewers need to trust a generated test.</p></article>
+        <article><h3>Where does AI help?</h3><p>Explore optional scenario drafting within the team's data policies.</p></article>
+      </div>
+      <p class="notes"><strong>Ask:</strong> Which API and workflow should we evaluate first, and what would a useful pilot demonstrate?</p>
+      <span class="slide-no">14 / 15</span>
+    </section>
+
+    <section class="slide" aria-labelledby="slide-title-15" data-notes="This is the project navigation slide. Each link opens a local Markdown guide in a new tab. Use End to return here from anywhere in the deck. Start with the README for usage, then use the contract and walkthroughs for deeper technical questions.">
+      <div class="kicker">14 · Explore the project</div>
+      <h2 id="slide-title-15">One deck. <span class="accent">The full project map.</span></h2>
+      <p>Open the supporting guide that matches the question; these files live beside this presentation in the project.</p>
+      <div class="resource-grid">
+        <a class="resource-link" href="../README.md" target="_blank" rel="noopener"><strong>README.md</strong><span>Product overview and CLI usage</span></a>
+        <a class="resource-link" href="../BACKLOG.md" target="_blank" rel="noopener"><strong>BACKLOG.md</strong><span>Roadmap, status, and acceptance criteria</span></a>
+        <a class="resource-link" href="./service-line-demo-presentation.md" target="_blank" rel="noopener"><strong>Markdown presentation</strong><span>Text version of this deck</span></a>
+        <a class="resource-link" href="../HANDOFF.md" target="_blank" rel="noopener"><strong>HANDOFF.md</strong><span>Project context and collaboration notes</span></a>
+        <a class="resource-link" href="./AGENT-CONTRACT.md" target="_blank" rel="noopener"><strong>AGENT-CONTRACT.md</strong><span>Workflow states, evidence, and approval model</span></a>
+        <a class="resource-link" href="./service-line-demo-instructions.md" target="_blank" rel="noopener"><strong>Service-line demo instructions</strong><span>Presenter script and troubleshooting</span></a>
+        <a class="resource-link" href="./petstore-demo-walkthrough.md" target="_blank" rel="noopener"><strong>Petstore demo walkthrough</strong><span>Mock, public read, and local order lifecycle</span></a>
+        <a class="resource-link" href="./frankfurter-demo.md" target="_blank" rel="noopener"><strong>Frankfurter demo runbook</strong><span>OpenAPI 3.1 read-only workflow</span></a>
+        <a class="resource-link" href="./petstore-live-plan-2026-10-10.md" target="_blank" rel="noopener"><strong>Petstore live plan</strong><span>Operation and case inventory with evidence</span></a>
+        <a class="resource-link" href="../examples/petstore/TEST-PLAN-EXAMPLE.md" target="_blank" rel="noopener"><strong>Example test plan</strong><span>How generated cases are documented</span></a>
+        <a class="resource-link" href="./COLLEAGUE-HANDOFF.md" target="_blank" rel="noopener"><strong>Colleague handoff</strong><span>Clean setup and acceptance checklist</span></a>
+      </div>
+      <p class="notes"><strong>Navigate:</strong> use <code>End</code> to return to this project map; use the links to open the full Markdown guides.</p>
+      <span class="slide-no">15 / 15</span>
     </section>
   </main>
 
   <footer class="bottombar">
     <div class="controls">
       <button type="button" id="previous" aria-label="Previous slide">Previous</button>
-      <span class="counter" id="counter" aria-live="polite">1 / 13</span>
+      <span class="counter" id="counter" aria-live="polite">1 / 15</span>
       <button type="button" id="next" aria-label="Next slide">Next</button>
       <div class="progress-track" aria-hidden="true"><div class="progress" id="progress"></div></div>
     </div>
