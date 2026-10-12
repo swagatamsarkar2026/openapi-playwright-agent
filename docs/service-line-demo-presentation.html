@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#171b1c">
+  <title>OpenAPI Playwright Agent | Service-Line Demo</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #171b1c;
+      --muted: #4f5b5c;
+      --paper: #f7f7f2;
+      --line: #d5d9d3;
+      --dark: #171b1c;
+      --dark-2: #242c2c;
+      --mint: #b9f078;
+      --teal: #087f8c;
+      --coral: #ee715b;
+      --yellow: #f0c75e;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      --sans: "Avenir Next", Avenir, "Segoe UI", sans-serif;
+      --serif: "Iowan Old Style", Baskerville, "Palatino Linotype", serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      background-color: #dfe4df;
+      background-image: repeating-linear-gradient(135deg, #ffffff55 0 1px, transparent 1px 20px);
+      color: var(--ink);
+      font: 16px/1.45 var(--sans);
+    }
+    button { font: inherit; }
+    .topbar, .bottombar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: min(1440px, calc(100vw - 48px));
+      margin: 0 auto;
+    }
+    .topbar { height: 54px; color: var(--ink); }
+    .brand { display: flex; align-items: center; gap: 10px; font-size: .78rem; font-weight: 750; text-transform: uppercase; }
+    .brand-mark { width: 11px; height: 11px; background: var(--coral); transform: rotate(45deg); }
+    .hint { color: #53605d; font-size: .78rem; }
+    .stage {
+      display: grid;
+      min-height: calc(100vh - 108px);
+      place-items: center;
+      padding: 8px 0;
+    }
+    .slide {
+      position: relative;
+      display: none;
+      width: min(1440px, calc(100vw - 48px), calc((100vh - 126px) * 1.77778));
+      aspect-ratio: 16 / 9;
+      overflow: hidden;
+      padding: 3.25rem 3.75rem 3rem;
+      background: var(--paper);
+      box-shadow: 0 26px 80px #17232235;
+    }
+    .slide.active { display: flex; flex-direction: column; animation: slide-enter .35s ease-out both; }
+    .slide.active > :not(.slide-no) { animation: content-enter .42s ease-out both; }
+    .slide.active > :nth-child(2) { animation-delay: .04s; }
+    .slide.active > :nth-child(3) { animation-delay: .09s; }
+    .slide.active > :nth-child(4) { animation-delay: .14s; }
+    @keyframes slide-enter { from { opacity: .75; } to { opacity: 1; } }
+    @keyframes content-enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .slide.dark { background: var(--dark); color: var(--paper); }
+    .slide.dark p, .slide.dark .subtle { color: #c4ceca; }
+    .slide::after {
+      position: absolute;
+      right: 45px;
+      bottom: 45px;
+      width: 180px;
+      height: 100px;
+      border-top: 1px solid #087f8c50;
+      border-bottom: 1px solid #ee715b70;
+      content: "";
+      transform: rotate(-35deg);
+      pointer-events: none;
+    }
+    .kicker { display: flex; align-items: center; gap: 10px; color: var(--teal); font-size: .76rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    .dark .kicker { color: var(--mint); }
+    .kicker::before { width: 22px; height: 2px; background: currentColor; content: ""; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1, h2 { font-family: var(--serif); font-weight: 600; letter-spacing: 0; }
+    h1 { max-width: 900px; margin-bottom: 1rem; font-size: 3.55rem; line-height: 1.02; }
+    h2 { margin: .55rem 0 1rem; font-size: 2.35rem; line-height: 1.08; }
+    h3 { margin: 0 0 .45rem; font-size: 1.05rem; }
+    p { max-width: 850px; margin-bottom: .7rem; color: var(--muted); }
+    .lede { max-width: 760px; font-size: 1.2rem; }
+    .accent { color: var(--coral); }
+    .dark .accent { color: var(--mint); }
+    .cover { justify-content: center; background: var(--dark); }
+    .cover-layout { display: grid; grid-template-columns: 1.2fr .8fr; align-items: center; gap: 3rem; width: 100%; }
+    .cover-main { max-width: 760px; }
+    .cover .eyebrow { margin-bottom: 1.2rem; color: var(--mint); font-size: .8rem; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
+    .cover h1 { max-width: 950px; font-size: 4.4rem; }
+    .cover .lede { margin-bottom: 2rem; color: #d2dbd6; }
+    .cover-stamp { display: inline-flex; align-items: center; gap: 10px; width: fit-content; border: 1px solid #ffffff44; padding: 9px 13px; color: #d2dbd6; font-size: .8rem; }
+    .cover-stamp b { color: var(--mint); }
+    .cover-rail { border-left: 1px solid #ffffff50; background: var(--dark-2); padding: 1.25rem 1.5rem; }
+    .cover-rail-label { margin-bottom: .8rem; color: var(--coral); font-size: .7rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    .cover-stage { display: grid; grid-template-columns: 2.5rem 1fr; align-items: center; gap: .7rem; min-height: 3.4rem; border-top: 1px solid #ffffff24; }
+    .cover-stage b { color: var(--mint); font: .85rem var(--mono); }
+    .cover-stage span { color: var(--paper); font-family: var(--serif); font-size: 1.08rem; }
+    .slide-no { position: absolute; right: 2rem; bottom: 1.45rem; color: #84908b; font: .75rem var(--mono); }
+    .notes { margin-top: auto; padding-top: .75rem; color: #60706b; font-size: .82rem; }
+    .dark .notes { color: #96a59e; }
+    .notes strong { color: var(--coral); text-transform: uppercase; letter-spacing: .08em; font-size: .68rem; }
+    .dark .notes strong { color: var(--mint); }
+    .workflow { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 1rem 0 1.3rem; }
+    .slide.active .node { animation: content-enter .45s ease-out both; }
+    .slide.active .node:nth-child(2) { animation-delay: .08s; }
+    .slide.active .node:nth-child(3) { animation-delay: .14s; }
+    .slide.active .node:nth-child(4) { animation-delay: .2s; }
+    .slide.active .node:nth-child(5) { animation-delay: .26s; }
+    .node { position: relative; min-height: 150px; border-top: 4px solid var(--teal); background: #fff; padding: 15px 13px; }
+    .node:nth-child(2) { border-color: var(--coral); }
+    .node:nth-child(3) { border-color: var(--yellow); }
+    .node:nth-child(4) { border-color: var(--teal); }
+    .node:nth-child(5) { border-color: #547d36; }
+    .node .num { display: block; margin-bottom: 1rem; color: #78827d; font: .76rem var(--mono); }
+    .node strong { display: block; margin-bottom: .35rem; color: var(--ink); font-family: var(--serif); font-size: 1.14rem; line-height: 1.05; }
+    .node span:last-child { color: var(--muted); font-size: .83rem; }
+    .build-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: .8rem 0; }
+    .build-item { min-height: 155px; border-left: 4px solid var(--teal); background: #fff; padding: 13px 14px; }
+    .build-item:nth-child(2) { border-color: var(--coral); }
+    .build-item:nth-child(3) { border-color: var(--yellow); }
+    .build-item:nth-child(4) { border-color: #547d36; }
+    .build-item b { display: block; margin-bottom: .6rem; color: var(--teal); font: 1.15rem var(--mono); }
+    .build-item:nth-child(2) b { color: #bd4938; }
+    .build-item:nth-child(3) b { color: #896600; }
+    .build-item:nth-child(4) b { color: #416426; }
+    .build-item strong { display: block; margin-bottom: .35rem; color: var(--ink); font-family: var(--serif); font-size: 1.08rem; }
+    .build-item span { color: var(--muted); font-size: .78rem; }
+    .build-proof { display: flex; justify-content: space-between; gap: 1rem; border-top: 1px solid var(--line); padding-top: .65rem; color: var(--muted); font-size: .82rem; }
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 1rem 0; }
+    .metric { min-height: 115px; padding: 15px; background: var(--dark-2); color: var(--paper); }
+    .metric b { display: block; color: var(--mint); font: 2rem var(--serif); }
+    .metric span { color: #d2dbd6; font-size: .82rem; }
+    .status-table { width: 100%; border-collapse: collapse; margin: .4rem 0; font-size: .86rem; }
+    .status-table th { padding: 8px 10px; background: var(--dark); color: #fff; text-align: left; font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; }
+    .status-table td { border-bottom: 1px solid var(--line); padding: 9px 10px; vertical-align: top; }
+    .status-table tr:nth-child(even) td { background: #ecefe9; }
+    .pill { display: inline-block; padding: 3px 8px; background: #e3f4d4; color: #315c1e; font: 700 .7rem var(--mono); white-space: nowrap; }
+    .pill.warn { background: #fde8df; color: #8a321f; }
+    .split { display: grid; grid-template-columns: 1.1fr .9fr; gap: 28px; align-items: start; }
+    .callout { border-left: 4px solid var(--coral); background: #fff0eb; padding: 12px 15px; color: #713a2e; }
+    .dark .callout { border-color: var(--mint); background: #29362c; color: #e6f4dc; }
+    .callout strong { display: block; margin-bottom: 4px; }
+    .command { position: relative; margin: .5rem 0 .65rem; }
+    pre {
+      max-height: 250px;
+      overflow: auto;
+      margin: 0;
+      border: 1px solid #34413f;
+      background: #1b2222;
+      padding: 13px 50px 13px 14px;
+      color: #edf1e9;
+      font: .74rem/1.45 var(--mono);
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    pre code { font: inherit; }
+    .copy {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      border: 1px solid #89958d;
+      background: #293131;
+      padding: 4px 7px;
+      color: #fff;
+      cursor: pointer;
+      font-size: .72rem;
+    }
+    .compact-list { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 24px; margin: .7rem 0; padding: 0; list-style: none; }
+    .compact-list li { border-top: 1px solid var(--line); padding: 8px 0; color: var(--muted); }
+    .compact-list b { color: var(--ink); }
+    .value-path { display: grid; grid-template-columns: 1fr 42px 1fr 42px 1fr; align-items: stretch; gap: 8px; margin: 1.1rem 0; }
+    .value-stop { display: flex; flex-direction: column; justify-content: center; min-height: 150px; border-top: 5px solid var(--teal); background: #fff; padding: 16px; }
+    .value-stop:nth-of-type(2) { border-color: var(--coral); }
+    .value-stop:nth-of-type(3) { border-color: #547d36; background: var(--dark); color: var(--paper); }
+    .value-stop small { margin-bottom: .45rem; color: var(--muted); font: 700 .7rem var(--mono); text-transform: uppercase; }
+    .value-stop:nth-of-type(3) small { color: var(--mint); }
+    .value-stop strong { font-family: var(--serif); font-size: 1.25rem; line-height: 1.12; }
+    .value-stop span { margin-top: .4rem; color: var(--muted); font-size: .8rem; }
+    .value-stop:nth-of-type(3) span { color: #d2dbd6; }
+    .value-arrow { align-self: center; color: var(--coral); font-size: 1.8rem; font-weight: 800; text-align: center; }
+    .goal-slide h2 { margin-bottom: .55rem; }
+    .goal-slide .lede { margin-bottom: .4rem; font-size: 1.05rem; }
+    .goal-slide .compact-list { gap: 5px 18px; margin: .35rem 0; }
+    .goal-slide .compact-list li { padding: 5px 0; font-size: .84rem; line-height: 1.3; }
+    .goal-slide .callout { margin-top: .25rem; padding: 9px 12px; font-size: .88rem; }
+    .qa { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 18px; }
+    .qa article { border-top: 2px solid var(--coral); padding-top: 9px; }
+    .qa h3 { font-family: var(--serif); font-size: 1.06rem; }
+    .qa p { margin: 0; font-size: .82rem; }
+    .source-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: .7rem 0; }
+    .source-card { border-top: 4px solid var(--teal); background: #fff; padding: 14px; }
+    .source-card:nth-child(2) { border-color: var(--coral); }
+    .source-card h3 { font-family: var(--serif); font-size: 1.25rem; }
+    .source-card p { margin: 5px 0; font-size: .82rem; }
+    .dark .source-card { color: var(--ink); }
+    .dark .source-card p { color: var(--muted); }
+    .source-card code { display: block; margin-top: 5px; background: transparent; padding: 0; overflow-wrap: anywhere; font: .65rem/1.35 var(--mono); }
+    .resource-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 14px; margin: .6rem 0; }
+    .resource-link { display: block; border-left: 3px solid var(--teal); background: #fff; padding: 8px 10px; color: var(--ink); text-decoration: none; }
+    .resource-link:nth-child(even) { border-color: var(--coral); }
+    .resource-link:hover, .resource-link:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+    .resource-link strong { display: block; font-size: .83rem; }
+    .resource-link span { color: var(--muted); font-size: .7rem; }
+    .case-table td { font-size: .72rem; }
+    .bottombar { height: 54px; }
+    .controls { display: flex; align-items: center; gap: 8px; }
+    .controls button { border: 1px solid #77827b; background: #f8faf5; padding: 7px 10px; color: var(--ink); cursor: pointer; font-size: .78rem; }
+    .controls button:hover, .controls button:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+    .counter { min-width: 72px; color: #34403d; text-align: center; font: .76rem var(--mono); }
+    .progress-track { width: min(300px, 28vw); height: 4px; background: #b8c0ba; }
+    .progress { width: 0; height: 100%; background: var(--teal); transition: width .2s ease; }
+    .notes-panel {
+      position: fixed;
+      z-index: 5;
+      right: 20px;
+      bottom: 72px;
+      width: min(420px, calc(100vw - 40px));
+      border: 1px solid #aeb7b0;
+      background: #fffef8;
+      padding: 16px;
+      box-shadow: 0 12px 40px #14211d30;
+    }
+    .notes-panel[hidden] { display: none; }
+    .notes-panel h2 { margin: 0 0 6px; font: 800 .72rem var(--sans); letter-spacing: .1em; text-transform: uppercase; }
+    .notes-panel p { margin: 0; font-size: .9rem; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+    @media (max-width: 760px) {
+      .topbar, .bottombar { width: calc(100vw - 24px); }
+      .hint { display: none; }
+      .stage { min-height: calc(100vh - 108px); align-items: start; padding: 4px 0; }
+      .slide { width: calc(100vw - 24px); min-height: calc(100vh - 120px); height: auto; aspect-ratio: auto; padding: 2rem 1.35rem 2.5rem; overflow: visible; }
+      .slide::after { display: none; }
+      .cover-layout { grid-template-columns: 1fr; gap: 1.2rem; }
+      .cover-rail { padding: .75rem 1rem; }
+      .cover-stage { min-height: 2.6rem; }
+      h1, .cover h1 { font-size: 2.6rem; }
+      h2 { font-size: 1.85rem; }
+      .lede { font-size: 1.03rem; }
+      .workflow { grid-template-columns: 1fr; gap: 6px; }
+      .node { min-height: 0; display: grid; grid-template-columns: 35px 1fr; column-gap: 8px; padding: 10px; }
+      .node .num { grid-row: span 2; margin: 0; }
+      .node strong { margin: 0; }
+      .build-grid { grid-template-columns: 1fr 1fr; gap: 7px; }
+      .build-item { min-height: 0; padding: 10px; }
+      .build-item b { margin-bottom: .35rem; }
+      .build-proof { flex-direction: column; gap: .25rem; }
+      .value-path { grid-template-columns: 1fr; gap: 6px; margin: .6rem 0; }
+      .value-stop { min-height: 0; padding: 11px; }
+      .value-arrow { transform: rotate(90deg); font-size: 1.25rem; line-height: 1; }
+      .metrics { grid-template-columns: 1fr 1fr; }
+      .split, .qa { grid-template-columns: 1fr; }
+      .source-grid { grid-template-columns: 1fr; gap: 8px; }
+      .resource-grid { grid-template-columns: 1fr; gap: 5px; }
+      .source-card { padding: 10px; }
+      .source-card p { font-size: .72rem; }
+      .source-card code { font-size: .58rem; }
+      .case-table td { font-size: .58rem; }
+      .status-table { font-size: .73rem; }
+      .status-table th, .status-table td { padding: 6px; }
+      .status-table { table-layout: fixed; font-size: .62rem; }
+      .status-table th, .status-table td { overflow-wrap: anywhere; }
+      .status-table th:nth-child(1) { width: 25%; }
+      .status-table th:nth-child(2) { width: 29%; }
+      .status-table th:nth-child(3) { width: 46%; }
+      .pill { white-space: normal; font-size: .56rem; }
+      .compact-list { grid-template-columns: 1fr; gap: 0; }
+      pre { max-height: 240px; font-size: .68rem; }
+      .progress-track { display: none; }
+      .notes { padding-bottom: .2rem; }
+    }
+    @media (min-width: 761px) and (max-height: 700px) {
+      .slide { padding: 1.55rem 2rem 1.3rem; }
+      h1 { font-size: 3rem; }
+      .cover h1 { font-size: 3.5rem; }
+      h2 { margin: .3rem 0 .65rem; font-size: 1.85rem; }
+      h3 { font-size: .9rem; }
+      p { margin: 5px 0; font-size: .84rem; }
+      .lede { font-size: 1rem; }
+      .cover .eyebrow { margin-bottom: .7rem; }
+      .cover .lede { margin-bottom: 1rem; }
+      .workflow { gap: 8px; margin: .55rem 0 .7rem; }
+      .node { min-height: 105px; padding: 10px; }
+      .node .num { margin-bottom: .55rem; }
+      .node strong { font-size: .98rem; }
+      .node span:last-child, .metric span { font-size: .72rem; }
+      .metrics { gap: 8px; margin: .5rem 0; }
+      .metric { min-height: 76px; padding: 10px; }
+      .metric b { font-size: 1.5rem; }
+      .source-grid { gap: 8px; margin: .35rem 0; }
+      .source-card { padding: 9px; }
+      .source-card h3 { font-size: .98rem; }
+      .source-card p { font-size: .68rem; }
+      .source-card code { font-size: .55rem; }
+      .case-table td { font-size: .62rem; }
+      .status-table { font-size: .7rem; }
+      .status-table th, .status-table td { padding: 5px 7px; }
+      .command { margin: .3rem 0 .4rem; }
+      pre { max-height: 155px; padding: 9px 42px 9px 10px; font-size: .65rem; }
+      .compact-list { gap: 4px 16px; margin: .35rem 0; }
+      .compact-list li { padding: 4px 0; font-size: .78rem; }
+      .qa { gap: 7px 14px; }
+      .qa h3 { margin-bottom: 3px; font-size: .92rem; }
+      .qa p { font-size: .74rem; }
+      .slide-no { right: 1.4rem; bottom: .65rem; }
+      .notes { padding-top: .35rem; font-size: .7rem; }
+    }
+    @media print {
+      @page { size: landscape; margin: 0; }
+      body { background: #fff; }
+      .topbar, .bottombar, .notes-panel, .copy { display: none !important; }
+      .stage { display: block; min-height: 0; padding: 0; }
+      .slide, .slide.active {
+        display: flex !important;
+        width: 100vw;
+        height: 56.25vw;
+        max-height: 100vh;
+        aspect-ratio: 16 / 9;
+        padding: 2.4rem 3rem;
+        box-shadow: none;
+        break-after: page;
+        page-break-after: always;
+      }
+      .slide:last-child { break-after: auto; page-break-after: auto; }
+      pre { max-height: none; print-color-adjust: exact; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark" aria-hidden="true"></span> OpenAPI Playwright Agent</div>
+    <div class="hint">Arrow keys to navigate · End for project links · N for notes · F for fullscreen</div>
+  </header>
+
+  <main class="stage" id="stage" aria-label="Presentation slides">
+    <section class="slide dark cover active" aria-labelledby="slide-title-1" data-notes="Open with the goal: move from the API definition a team already has to reviewed tests and useful evidence. Preview the four steps, then show concrete outcomes: Petstore inventory against live and mock, a mock-only order lifecycle, and Frankfurter latest rates.">
+      <div class="cover-layout">
+        <div class="cover-main">
+          <div class="eyebrow">OpenAPI Playwright Agent · project walkthrough</div>
+          <h1 id="slide-title-1">From API contract<br>to <span class="accent">tests your team can trust.</span></h1>
+          <p class="lede">Turn the API definition your team already owns into reviewed tests and clear execution evidence.</p>
+          <div class="cover-stamp"><b>VERIFIED</b><span>Petstore live + mock · Frankfurter live read · mock order cleanup</span></div>
+        </div>
+        <div class="cover-rail" aria-label="Project delivery path">
+          <div class="cover-rail-label">The delivery path</div>
+          <div class="cover-stage"><b>01</b><span>Understand the contract</span></div>
+          <div class="cover-stage"><b>02</b><span>Review the evidence</span></div>
+          <div class="cover-stage"><b>03</b><span>Approve and generate</span></div>
+          <div class="cover-stage"><b>04</b><span>Run and learn</span></div>
+        </div>
+      </div>
+      <span class="slide-no">01 / 15</span>
+    </section>
+
+    <section class="slide goal-slide" aria-labelledby="slide-title-2" data-notes="Lead with the practical outcome: less repetitive test setup, consistent review, and traceable results. The workflow keeps decisions understandable and approvals explicit.">
+      <div class="kicker">01 · The goal</div>
+      <h2 id="slide-title-2">Move from API description<br>to <span class="accent">evidence you can act on.</span></h2>
+      <p class="lede">The goal is to make API validation easier to prepare, review, repeat, and explain.</p>
+      <div class="value-path" aria-label="Contract to usable validation result">
+        <div class="value-stop"><small>Start with</small><strong>API contract</strong><span>Swagger or OpenAPI input</span></div>
+        <div class="value-arrow" aria-hidden="true">→</div>
+        <div class="value-stop"><small>Make it</small><strong>Reviewable tests</strong><span>Evidence, approval, generated checks</span></div>
+        <div class="value-arrow" aria-hidden="true">→</div>
+        <div class="value-stop"><small>Get</small><strong>Useful results</strong><span>Controlled runs, traceable outcomes</span></div>
+      </div>
+      <p class="callout"><strong>Why it matters</strong>Less repeated setup, clearer decisions, and evidence the team can act on.</p>
+      <span class="slide-no">02 / 15</span>
+    </section>
+
+    <section class="slide dark" aria-labelledby="slide-title-3" data-notes="Walk left to right. Guided review makes no API-under-test request. Running a generated test requires a valid approved artifact and separate target and execution confirmation; writes need one more approval.">
+      <div class="kicker">02 · The workflow</div>
+      <h2 id="slide-title-3">Approval is part of the <span class="accent">architecture.</span></h2>
+      <div class="workflow">
+        <div class="node"><span class="num">01</span><strong>Contract</strong><span>Swagger / OpenAPI input</span></div>
+        <div class="node"><span class="num">02</span><strong>Evidence</strong><span>Cases, samples, pointers</span></div>
+        <div class="node"><span class="num">03</span><strong>Human review</strong><span>Select and approve</span></div>
+        <div class="node"><span class="num">04</span><strong>Guarded run</strong><span>Target and execution gates</span></div>
+        <div class="node"><span class="num">05</span><strong>Result</strong><span>Redacted record and summary</span></div>
+      </div>
+      <p class="subtle">The core workflow is deterministic. Optional OpenAI drafting can add reviewer-facing scenario proposals within the same controlled process.</p>
+      <span class="slide-no">03 / 15</span>
+    </section>
+
+    <section class="slide" aria-labelledby="slide-title-4" data-notes="This is the point to summarize what is already implemented before showing API evidence: contract intake, evidence-backed test plans, approved generation, guarded execution, and recorded results. It has been exercised with Swagger 2.0 Petstore and OpenAPI 3.1 Frankfurter.">
+      <div class="kicker">03 · What we built</div>
+      <h2 id="slide-title-4">A connected workflow, <span class="accent">already exercised.</span></h2>
+      <div class="build-grid">
+        <article class="build-item"><b>01 / INTAKE</b><strong>Read the contract</strong><span>Analyze Swagger 2.0 and OpenAPI 3.x inputs into stable operation and case inventories.</span></article>
+        <article class="build-item"><b>02 / PLAN</b><strong>Explain the test</strong><span>Show inputs, expected outcomes, provenance, and evidence pointers before generation.</span></article>
+        <article class="build-item"><b>03 / APPROVE</b><strong>Generate deliberately</strong><span>Bind Playwright output to the selected, explicitly approved plan revision.</span></article>
+        <article class="build-item"><b>04 / VERIFY</b><strong>Record the result</strong><span>Guard target and execution; report outcomes with stable IDs and redacted evidence.</span></article>
+      </div>
+      <div class="build-proof"><span><strong>Petstore</strong> · Swagger 2.0 · 20 operations · 43 cases analyzed</span><span><strong>Frankfurter</strong> · OpenAPI 3.1 · 5 operations · 9 cases analyzed</span></div>
+      <span class="slide-no">04 / 15</span>
+    </section>
+
+    <section class="slide" aria-labelledby="slide-title-5" data-notes="These three stable IDs make the end-to-end story concrete: inventory was run against live and mock Petstore; order creation/readback/cleanup was mock-only; Frankfurter demonstrates a second contract format and public read. Keep candidate counts distinct from executed outcomes.">
+      <div class="kicker">04 · Generated case review</div>
+      <h2 id="slide-title-5">Contract facts become <span class="accent">reviewable test cases.</span></h2>
+      <table class="status-table case-table">
+        <thead><tr><th>Case</th><th>Purpose</th><th>Verified outcome</th></tr></thead>
+        <tbody>
+          <tr><td><code>TC-GETINVENTORY-POS-200</code></td><td>Validate the inventory read response</td><td>Passed against public Petstore and loopback mock.</td></tr>
+          <tr><td><code>TC-PLACEORDER-POS-200</code></td><td>Validate order creation in an isolated mock</td><td>Passed with readback and restart cleanup verified.</td></tr>
+          <tr><td><code>TC-GET-LATEST-POS-200</code></td><td>Validate an OpenAPI 3.1 read operation</td><td>Passed against Frankfurter with response-schema validation.</td></tr>
+        </tbody>
+      </table>
+      <p class="notes"><strong>Traceability:</strong> each case has a stable ID and contract evidence; selected cases are approved before generation.</p>
+      <span class="slide-no">05 / 15</span>
+    </section>
+
+    <section class="slide" aria-labelledby="slide-title-6" data-notes="Separate each environment explicitly. Petstore inventory passed live and mock; the mock-only order lifecycle proved readback and restart cleanup; Frankfurter latest passed against the public API with schema validation.">
+      <div class="kicker">05 · Execution evidence</div>
+      <h2 id="slide-title-6">What we have <span class="accent">actually verified.</span></h2>
+      <table class="status-table">
+        <thead><tr><th>Target</th><th>Case</th><th>Observed result</th></tr></thead>
+        <tbody>
+          <tr><td>Petstore public API</td><td><code>GET /store/inventory</code></td><td><span class="pill">PASS · HTTP 200</span></td></tr>
+          <tr><td>Petstore loopback mock</td><td><code>GET /store/inventory</code></td><td><span class="pill">PASS · HTTP 200</span></td></tr>
+          <tr><td>Petstore loopback mock</td><td><code>POST /store/order</code></td><td><span class="pill">PASS · readback 200 · restart 404</span></td></tr>
+          <tr><td>Frankfurter public API</td><td><code>GET /latest</code></td><td><span class="pill">PASS · schema asserted</span></td></tr>
+        </tbody>
+      </table>
+      <p class="notes"><strong>Value:</strong> combine real-service confidence with repeatable local validation and traceable results.</p>
+      <span class="slide-no">06 / 15</span>
+    </section>
+
+    <section class="slide" aria-labelledby="slide-title-7" data-notes="The live Petstore contract currently analyzed into 20 operations and 43 cases. The guide prints a lot of candidates; select only the inventory ID. Reviewing and generating does not send a request to the Petstore API operation.">
+      <div class="kicker">06 · Live Petstore read</div>
+      <h2 id="slide-title-7">Review one case before running it.</h2>
+      <div class="split">
+        <div>
+          <p>Fetch the current contract, then select only <code>TC-GETINVENTORY-POS-200</code> and approve generation.</p>
+          <div class="command"><button class="copy" type="button" aria-label="Copy Petstore review commands">Copy</button><pre><code>curl -fsSL https://petstore.swagger.io/v2/swagger.json -o /tmp/petstore-demo-swagger.json
+npx tsx src/cli.ts guide \
+  --spec /tmp/petstore-demo-swagger.json \
+  --objective "Validate the Petstore inventory read operation" \
+  --out tests/generated/petstore-demo-inventory.spec.ts \
+  --audit /tmp/petstore-demo-guided.jsonl</code></pre></div>
+          <p class="subtle">Guide prompts: select the case ID, inspect evidence, type <code>APPROVE</code>. No API-under-test request yet.</p>
+        </div>
+        <aside class="callout"><strong>What to point out</strong>Expected status, auth scheme, evidence pointer, and stable case ID. The generated artifact is tied to the approved plan revision.</aside>
+      </div>
+      <span class="slide-no">07 / 15</span>
+    </section>
+
+    <section class="slide dark" aria-labelledby="slide-title-8" data-notes="This is the one live Petstore API operation. It is read-only. Only run it if the target is authorized and reachable. The special-key value is the documented public example. If corporate TLS interception requires a trusted CA, set NODE_EXTRA_CA_CERTS to that approved certificate; never disable certificate validation. Use recorded evidence as fallback rather than retrying repeatedly.">
+      <div class="kicker">07 · Guarded live GET</div>
+      <h2 id="slide-title-8">One public read. <span class="accent">No public writes.</span></h2>
+      <div class="command"><button class="copy" type="button" aria-label="Copy Petstore live command">Copy</button><pre><code>API_KEY_API_KEY=special-key npx tsx src/cli.ts run \
+  --base-url https://petstore.swagger.io/v2 \
+  --file tests/generated/petstore-demo-inventory.spec.ts \
+  --results /tmp/petstore-demo-live-results.json \
+  --html-report /tmp/petstore-demo-live-report.html \
+  --audit /tmp/petstore-demo-live-run.jsonl</code></pre></div>
+      <div class="metrics">
+        <div class="metric"><b>200</b><span>Observed HTTP status</span></div>
+        <div class="metric"><b>1</b><span>Selected read-only case</span></div>
+        <div class="metric"><b>0</b><span>Mutations sent to Petstore</span></div>
+        <div class="metric"><b>3</b><span>Separate run confirmations</span></div>
+      </div>
+      <p>Confirm target, configured authentication, and execution at the CLI prompts. If the service is unavailable, show the previously recorded pass.</p>
+      <span class="slide-no">08 / 15</span>
+    </section>
+
+    <section class="slide" aria-labelledby="slide-title-9" data-notes="The mock binds only to loopback and inventory is fixture-backed. Same approved inventory test and assertions; this demonstrates repeatability without depending on Petstore availability. The local key is only a mock value.">
+      <div class="kicker">08 · Repeat locally</div>
+      <h2 id="slide-title-9">Same case, <span class="accent">controlled target.</span></h2>
+      <div class="split">
+        <div>
+          <div class="command"><button class="copy" type="button" aria-label="Copy Petstore mock command">Copy</button><pre><code>npm run mock:petstore
+
+API_KEY_API_KEY=local-mock-key npx tsx src/cli.ts run \
+  --base-url http://127.0.0.1:4010/v2 \
+  --file tests/generated/petstore-demo-inventory.spec.ts \
+  --results /tmp/petstore-demo-mock-results.json \
+  --html-report /tmp/petstore-demo-mock-report.html \
+  --audit /tmp/petstore-demo-mock-run.jsonl</code></pre></div>
+        </div>
+        <div>
+          <h3>Then summarize the record</h3>
+          <div class="command"><button class="copy" type="button" aria-label="Copy summarize command">Copy</button><pre><code>npx tsx src/cli.ts summarize \
+  --results /tmp/petstore-demo-mock-results.json</code></pre></div>
+          <p class="callout"><strong>Interpretation</strong>Pass/fail, status, and recorded assertion step. No inferred root cause.</p>
+        </div>
+      </div>
+      <span class="slide-no">09 / 15</span>
+    </section>
+
+    <section class="slide" aria-labelledby="slide-title-10" data-notes="Optional section. Keep it on loopback only. Re-guide and approve the order case from the current spec if using the live-contract-generated case. The CLI's separate mutation prompt is expected, not an inconvenience to bypass. Restart clears the in-memory order.">
+      <div class="kicker">09 · Optional mock-only write</div>
+      <h2 id="slide-title-10">Show the mutation gate <span class="accent">without public risk.</span></h2>
+      <div class="command"><button class="copy" type="button" aria-label="Copy local order command">Copy</button><pre><code>npx tsx src/cli.ts run \
+  --base-url http://127.0.0.1:4010/v2 \
+  --file tests/generated/petstore-demo-order.spec.ts \
+  --include-mutating \
+  --results /tmp/petstore-demo-order-results.json \
+  --html-report /tmp/petstore-demo-order-report.html \
+  --audit /tmp/petstore-demo-order-run.jsonl</code></pre></div>
+      <ol>
+        <li>Confirm loopback target, run approval, and <code>APPROVE MUTATING CALLS</code>.</li>
+        <li>Show <code>POST /store/order</code> passes with HTTP 200; read back order 1 with HTTP 200.</li>
+        <li>Stop and restart mock. Readback returns HTTP 404; state was process-local.</li>
+      </ol>
+      <p class="callout"><strong>Never point this write at public Petstore.</strong></p>
+      <span class="slide-no">10 / 15</span>
+    </section>
+
+    <section class="slide dark" aria-labelledby="slide-title-11" data-notes="Frankfurter is an additional public, read-only example. It was previously run through the guarded CLI and passed schema validation. Do not claim a fresh run unless you run it in front of the audience. Re-run only if authorized and network is available; full commands are in docs/frankfurter-demo.md.">
+      <div class="kicker">10 · Second contract</div>
+      <h2 id="slide-title-11">Another format. <span class="accent">Same workflow.</span></h2>
+      <p class="lede">Frankfurter OpenAPI 3.1 · `GET /latest` · no authentication</p>
+      <div class="metrics">
+        <div class="metric"><b>5</b><span>Documented operations analyzed</span></div>
+        <div class="metric"><b>9</b><span>Derived cases</span></div>
+        <div class="metric"><b>200</b><span>Observed status</span></div>
+        <div class="metric"><b>PASS</b><span>Response-schema assertion</span></div>
+      </div>
+      <p>Previously verified on the public read-only endpoint. Show the recorded result by default; follow the Frankfurter runbook for an authorized fresh run.</p>
+      <span class="slide-no">11 / 15</span>
+    </section>
+
+    <section class="slide" aria-labelledby="slide-title-12" data-notes="Explain controls as an enabler for safe, repeatable use: generated files are tied to approved plans, targets are confirmed before calls, mutations need an additional approval, and reports retain redacted evidence.">
+      <div class="kicker">11 · Trust and control</div>
+      <h2 id="slide-title-12">Make execution <span class="accent">clear and controlled.</span></h2>
+      <div class="source-grid">
+        <article class="source-card"><h3>Reviewed generation</h3><p>Generated tests are tied to the exact plan revision the reviewer approved.</p></article>
+        <article class="source-card"><h3>Authorized targets</h3><p>Target and authentication are confirmed before an API request is sent.</p></article>
+        <article class="source-card"><h3>Mutation gates</h3><p>State-changing tests require explicit opt-in and a separate run approval.</p></article>
+        <article class="source-card"><h3>Traceable results</h3><p>Stable case IDs and redacted reports make outcomes easier to review.</p></article>
+      </div>
+      <p class="callout"><strong>Benefit</strong>Teams can automate repeatable checks while keeping people in control of what runs and where.</p>
+      <span class="slide-no">12 / 15</span>
+    </section>
+
+    <section class="slide dark" aria-labelledby="slide-title-13" data-notes="Describe the LLM as optional drafting assistance. It receives minimized, redacted contract-derived context only after explicit consent. Drafts are proposals, not executable tests. The provider path has mocked tests; no live OpenAI request has been made. Do not send private specifications or objectives without the required data-policy approval.">
+      <div class="kicker">12 · Optional AI-assisted drafting</div>
+      <h2 id="slide-title-13">Use an LLM to widen review, <span class="accent">not own execution.</span></h2>
+      <p class="lede">OpenAI can suggest additional scenarios from bounded contract context while the deterministic workflow remains the source of executable tests.</p>
+      <div class="source-grid">
+        <article class="source-card"><h3>Bounded context</h3><p>With explicit consent, send the objective and minimized, redacted operation summaries, documented statuses, and evidence pointers.</p></article>
+        <article class="source-card"><h3>Proposal output</h3><p>Drafts are written separately for manual review. Model-authored steps and code are never executed.</p></article>
+        <article class="source-card"><h3>Grounded promotion</h3><p>A draft may map to an exact eligible read-only case; the reviewer still selects and approves the new plan revision.</p></article>
+        <article class="source-card"><h3>Current verification</h3><p>Provider behavior and safety are covered by mocked tests. No live OpenAI request has been made.</p></article>
+      </div>
+      <p class="subtle">Private specifications and objectives require an applicable data-policy review before external inference.</p>
+      <span class="slide-no">13 / 15</span>
+    </section>
+
+    <section class="slide" aria-labelledby="slide-title-14" data-notes="Close by connecting the workflow to the team's own API and delivery process. Invite a concrete next step: choose one authorized pilot API, a representative read path, and the evidence reviewers need.">
+      <div class="kicker">13 · Team discussion</div>
+      <h2 id="slide-title-14">Where could this workflow <span class="accent">help your team?</span></h2>
+      <div class="qa">
+        <article><h3>Which API?</h3><p>Choose an authorized service and a representative workflow.</p></article>
+        <article><h3>Which checks?</h3><p>Identify the read paths and outcomes that matter most.</p></article>
+        <article><h3>What evidence?</h3><p>Agree on what reviewers need to trust a generated test.</p></article>
+        <article><h3>Where does AI help?</h3><p>Explore optional scenario drafting within the team's data policies.</p></article>
+      </div>
+      <p class="notes"><strong>Ask:</strong> Which API and workflow should we evaluate first, and what would a useful pilot demonstrate?</p>
+      <span class="slide-no">14 / 15</span>
+    </section>
+
+    <section class="slide" aria-labelledby="slide-title-15" data-notes="This is the project navigation slide. Each link opens a local Markdown guide in a new tab. Use End to return here from anywhere in the deck. Start with the README for usage, then use the contract and walkthroughs for deeper technical questions.">
+      <div class="kicker">14 · Explore the project</div>
+      <h2 id="slide-title-15">One deck. <span class="accent">The full project map.</span></h2>
+      <p>Open the supporting guide that matches the question; these files live beside this presentation in the project.</p>
+      <div class="resource-grid">
+        <a class="resource-link" href="../README.md" target="_blank" rel="noopener"><strong>README.md</strong><span>Product overview and CLI usage</span></a>
+        <a class="resource-link" href="../BACKLOG.md" target="_blank" rel="noopener"><strong>BACKLOG.md</strong><span>Roadmap, status, and acceptance criteria</span></a>
+        <a class="resource-link" href="./service-line-demo-presentation.md" target="_blank" rel="noopener"><strong>Markdown presentation</strong><span>Text version of this deck</span></a>
+        <a class="resource-link" href="../HANDOFF.md" target="_blank" rel="noopener"><strong>HANDOFF.md</strong><span>Project context and collaboration notes</span></a>
+        <a class="resource-link" href="./AGENT-CONTRACT.md" target="_blank" rel="noopener"><strong>AGENT-CONTRACT.md</strong><span>Workflow states, evidence, and approval model</span></a>
+        <a class="resource-link" href="./service-line-demo-instructions.md" target="_blank" rel="noopener"><strong>Service-line demo instructions</strong><span>Presenter script and troubleshooting</span></a>
+        <a class="resource-link" href="./petstore-demo-walkthrough.md" target="_blank" rel="noopener"><strong>Petstore demo walkthrough</strong><span>Mock, public read, and local order lifecycle</span></a>
+        <a class="resource-link" href="./frankfurter-demo.md" target="_blank" rel="noopener"><strong>Frankfurter demo runbook</strong><span>OpenAPI 3.1 read-only workflow</span></a>
+        <a class="resource-link" href="./petstore-live-plan-2026-10-10.md" target="_blank" rel="noopener"><strong>Petstore live plan</strong><span>Operation and case inventory with evidence</span></a>
+        <a class="resource-link" href="../examples/petstore/TEST-PLAN-EXAMPLE.md" target="_blank" rel="noopener"><strong>Example test plan</strong><span>How generated cases are documented</span></a>
+        <a class="resource-link" href="./COLLEAGUE-HANDOFF.md" target="_blank" rel="noopener"><strong>Colleague handoff</strong><span>Clean setup and acceptance checklist</span></a>
+      </div>
+      <p class="notes"><strong>Navigate:</strong> use <code>End</code> to return to this project map; use the links to open the full Markdown guides.</p>
+      <span class="slide-no">15 / 15</span>
+    </section>
+  </main>
+
+  <footer class="bottombar">
+    <div class="controls">
+      <button type="button" id="previous" aria-label="Previous slide">Previous</button>
+      <span class="counter" id="counter" aria-live="polite">1 / 15</span>
+      <button type="button" id="next" aria-label="Next slide">Next</button>
+      <div class="progress-track" aria-hidden="true"><div class="progress" id="progress"></div></div>
+    </div>
+    <div class="controls">
+      <button type="button" id="notesToggle" aria-pressed="false">Speaker notes (N)</button>
+      <button type="button" id="fullscreen">Fullscreen (F)</button>
+      <button type="button" id="print">Print / PDF</button>
+    </div>
+  </footer>
+
+  <aside class="notes-panel" id="notesPanel" hidden aria-live="polite">
+    <h2>Presenter notes</h2>
+    <p id="notesText"></p>
+  </aside>
+  <div class="sr-only" id="announcement" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      const slides = Array.from(document.querySelectorAll(".slide"));
+      const counter = document.getElementById("counter");
+      const progress = document.getElementById("progress");
+      const notesPanel = document.getElementById("notesPanel");
+      const notesText = document.getElementById("notesText");
+      const notesToggle = document.getElementById("notesToggle");
+      const announcement = document.getElementById("announcement");
+      let current = 0;
+
+      function showSlide(index) {
+        current = Math.max(0, Math.min(index, slides.length - 1));
+        slides.forEach((slide, slideIndex) => {
+          const active = slideIndex === current;
+          slide.classList.toggle("active", active);
+          slide.setAttribute("aria-hidden", String(!active));
+        });
+        counter.textContent = `${current + 1} / ${slides.length}`;
+        progress.style.width = `${((current + 1) / slides.length) * 100}%`;
+        notesText.textContent = slides[current].dataset.notes || "No presenter notes for this slide.";
+        announcement.textContent = `Slide ${current + 1} of ${slides.length}`;
+        document.title = `${current + 1}. ${slides[current].querySelector("h1, h2")?.textContent.trim() || "Demo"} | OpenAPI Playwright Agent`;
+      }
+
+      function toggleNotes() {
+        const opening = notesPanel.hidden;
+        notesPanel.hidden = !opening;
+        notesToggle.setAttribute("aria-pressed", String(opening));
+      }
+
+      document.getElementById("previous").addEventListener("click", () => showSlide(current - 1));
+      document.getElementById("next").addEventListener("click", () => showSlide(current + 1));
+      notesToggle.addEventListener("click", toggleNotes);
+      document.getElementById("print").addEventListener("click", () => window.print());
+      document.getElementById("fullscreen").addEventListener("click", async () => {
+        if (!document.fullscreenElement) {
+          await document.documentElement.requestFullscreen?.();
+        } else {
+          await document.exitFullscreen?.();
+        }
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.altKey || event.ctrlKey || event.metaKey) return;
+        if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) return;
+        if (["ArrowRight", "PageDown", " "].includes(event.key)) {
+          event.preventDefault();
+          showSlide(current + 1);
+        } else if (["ArrowLeft", "PageUp"].includes(event.key)) {
+          event.preventDefault();
+          showSlide(current - 1);
+        } else if (event.key === "Home") {
+          showSlide(0);
+        } else if (event.key === "End") {
+          showSlide(slides.length - 1);
+        } else if (event.key.toLowerCase() === "n") {
+          toggleNotes();
+        } else if (event.key.toLowerCase() === "f") {
+          document.getElementById("fullscreen").click();
+        } else if (event.key === "Escape" && !notesPanel.hidden) {
+          notesPanel.hidden = true;
+          notesToggle.setAttribute("aria-pressed", "false");
+        }
+      });
+
+      document.querySelectorAll(".copy").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const code = button.parentElement.querySelector("code").innerText;
+          try {
+            await navigator.clipboard.writeText(code);
+          } catch {
+            const area = document.createElement("textarea");
+            area.value = code;
+            area.style.position = "fixed";
+            area.style.opacity = "0";
+            document.body.appendChild(area);
+            area.select();
+            document.execCommand("copy");
+            area.remove();
+          }
+          const original = button.textContent;
+          button.textContent = "Copied";
+          window.setTimeout(() => { button.textContent = original; }, 1200);
+        });
+      });
+
+      showSlide(0);
+    })();
+  </script>
+</body>
+</html>

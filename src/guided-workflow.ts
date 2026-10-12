@@ -14,6 +14,9 @@ export type WorkflowEventType =
   | "plan_approved"
   | "approval_invalidated"
   | "tests_generated"
+  | "ai_drafts_requested"
+  | "ai_drafts_generated"
+  | "ai_drafts_promoted"
   | "target_approved"
   | "authentication_approved"
   | "authentication_not_required"
@@ -62,6 +65,12 @@ export interface GeneratedWorkflowResult {
   manualReviewCount: number;
 }
 
+export interface AIDraftPromotion {
+  draftId: string;
+  operationId: string;
+  sourceCaseId: string;
+}
+
 function recordEvent(
   session: { workflowId: string; planId?: string; planRevision?: number; audit?: AuditSink },
   event: WorkflowEventType,
@@ -88,6 +97,81 @@ export function createJsonlAuditSink(filePath: string): AuditSink {
     await mkdir(dirname(outputPath), { recursive: true });
     await appendFile(outputPath, `${JSON.stringify(event)}\n`, "utf8");
   };
+}
+
+export async function recordAIDraftWorkflowEvent(
+  session: GuidedSession,
+  event: "ai_drafts_requested" | "ai_drafts_generated",
+  outcome: WorkflowEvent["outcome"],
+  errorCategory?: string
+): Promise<void> {
+  await recordEvent(session, event, outcome, undefined, errorCategory);
+}
+
+export async function promoteAIDraftCases(
+  session: GuidedSession,
+  promotions: readonly AIDraftPromotion[]
+): Promise<string[]> {
+  if (promotions.length === 0) return [];
+  try {
+    const existingIds = new Set(session.plan.operations.flatMap(operation => operation.testCases.map(testCase => testCase.id)));
+    const sourceCaseIds = new Set<string>();
+    const staged: Array<{ operationIndex: number; testCase: PlannedTestCase }> = [];
+    for (const promotion of promotions) {
+      if (!/^AI-DRAFT-[A-Z0-9-]+$/.test(promotion.draftId) || existingIds.has(promotion.draftId)) {
+        throw new Error("AI draft promotion contains an invalid or duplicate case ID.");
+      }
+      if (sourceCaseIds.has(promotion.sourceCaseId)) {
+        throw new Error("Only one AI draft may be promoted from each deterministic case.");
+      }
+      const operationIndex = session.plan.operations.findIndex(operation => operation.id === promotion.operationId);
+      const operation = session.plan.operations[operationIndex];
+      const sourceCase = operation?.testCases.find(testCase => testCase.id === promotion.sourceCaseId);
+      if (!operation || !sourceCase || sourceCase.execution !== "automated" || sourceCase.mutating
+        || sourceCase.warnings.length > 0 || sourceCase.expectedStatus === undefined
+        || sourceCase.evidence.length === 0
+        || sourceCase.evidence.some(evidence => evidence.specFingerprint !== session.plan.specFingerprint)) {
+        throw new Error("AI draft promotion must map to a grounded, warning-free, non-mutating automated case from the same operation.");
+      }
+      sourceCaseIds.add(promotion.sourceCaseId);
+      existingIds.add(promotion.draftId);
+      staged.push({
+        operationIndex,
+        testCase: {
+          ...sourceCase,
+          id: promotion.draftId,
+          title: `${sourceCase.title} (AI-assisted ${promotion.draftId})`,
+          parameters: sourceCase.parameters.map(parameter => ({ ...parameter })),
+          preconditions: [...sourceCase.preconditions],
+          evidence: sourceCase.evidence.map(evidence => ({ ...evidence })),
+          steps: sourceCase.steps.map(step => ({ ...step })),
+          warnings: [...sourceCase.warnings]
+        }
+      });
+    }
+
+    const previousRevision = session.planRevision;
+    const previousApproval = session.approval;
+    for (const item of staged) session.plan.operations[item.operationIndex]!.testCases.push(item.testCase);
+    session.planRevision += 1;
+    delete session.approval;
+    const promotedCaseIds = staged.map(item => item.testCase.id);
+    try {
+      await recordEvent(session, "ai_drafts_promoted", "success", promotedCaseIds);
+    } catch (error) {
+      for (const item of staged) {
+        const operation = session.plan.operations[item.operationIndex]!;
+        operation.testCases = operation.testCases.filter(testCase => testCase.id !== item.testCase.id);
+      }
+      session.planRevision = previousRevision;
+      if (previousApproval) session.approval = previousApproval;
+      throw error;
+    }
+    return promotedCaseIds;
+  } catch (error) {
+    await recordEvent(session, "tool_failed", "failed", undefined, "AIDraftPromotionError");
+    throw error;
+  }
 }
 
 export async function createGuidedSession(
