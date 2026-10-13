@@ -1,0 +1,1226 @@
+{
+  "info": {
+    "name": "Petstore Generated Cases - Manual Validation",
+    "description": "Generated from the approved 43-case plan, revision 1. Review each request description before sending. The default target is the loopback mock at 127.0.0.1:4010/v2. That mock implements only GET /store/inventory, POST /store/order, and GET /store/order/{orderId}; other routes return 404 and are not validated by it. Do not point mutating requests at public Petstore. OAuth credentials and live test data are not included. Mutating requests are guarded to the loopback mock; the session-logout request is blocked pending manual review.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Automated candidates (9)",
+      "description": "Candidate classification is not execution approval. Only TC-GETINVENTORY-POS-200 and TC-PLACEORDER-POS-200 are marked runnable in the generated plan header; check prerequisites before sending.",
+      "item": [
+        {
+          "name": "TC-UPLOADFILE-POS-200 | POST /pet/{petId}/uploadImage",
+          "description": "Execution classification: automated\nMutating: yes\nExpected status: 200\nSupply required parameters using the listed examples or schema-derived values.\nProvide credentials for the declared security scheme(s) using the environment variables documented in README.md.\nUse an isolated test environment; this operation may create, update, or delete data.\nRequired path parameter \"petId\" has no usable value.\nParameter \"petId\" uses unsupported path serialization (style=simple, explode=false).\nSwagger formData parameters require manual implementation.",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/pet/{{petId}}/uploadImage",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{petstoreOAuthToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const target = pm.variables.replaceIn('{{baseUrl}}');",
+                  "if (target !== 'http://127.0.0.1:4010/v2') { throw new Error('Safety guard: mutating cases are restricted to the documented loopback mock.'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-FINDPETSBYSTATUS-POS-200 | GET /pet/findByStatus",
+          "description": "Execution classification: automated\nMutating: no\nExpected status: 200\nSupply required parameters using the listed examples or schema-derived values.\nProvide credentials for the declared security scheme(s) using the environment variables documented in README.md.\nRequired query parameter \"status\" has no usable value.\nParameter \"status\" uses unsupported query serialization (style=form, explode=true).",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/pet/findByStatus?status={{status}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{petstoreOAuthToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC-FINDPETSBYTAGS-POS-200 | GET /pet/findByTags",
+          "description": "Execution classification: automated\nMutating: no\nExpected status: 200\nSupply required parameters using the listed examples or schema-derived values.\nProvide credentials for the declared security scheme(s) using the environment variables documented in README.md.\nRequired query parameter \"tags\" has no usable value.\nParameter \"tags\" uses unsupported query serialization (style=form, explode=true).",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/pet/findByTags?tags={{tags}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{petstoreOAuthToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC-GETPETBYID-POS-200 | GET /pet/{petId}",
+          "description": "Execution classification: automated\nMutating: no\nExpected status: 200\nSupply required parameters using the listed examples or schema-derived values.\nProvide credentials for the declared security scheme(s) using the environment variables documented in README.md.\nRequired path parameter \"petId\" has no usable value.\nParameter \"petId\" uses unsupported path serialization (style=simple, explode=false).",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/pet/{{petId}}",
+            "auth": {
+              "type": "apikey",
+              "apikey": [
+                {
+                  "key": "key",
+                  "value": "api_key",
+                  "type": "string"
+                },
+                {
+                  "key": "value",
+                  "value": "{{petstoreApiKey}}",
+                  "type": "string"
+                },
+                {
+                  "key": "in",
+                  "value": "header",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC-GETINVENTORY-POS-200 | GET /store/inventory",
+          "description": "Execution classification: automated\nMutating: no\nExpected status: 200\nNo path, query, header, or cookie parameters are declared.\nProvide credentials for the declared security scheme(s) using the environment variables documented in README.md.",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/store/inventory",
+            "auth": {
+              "type": "apikey",
+              "apikey": [
+                {
+                  "key": "key",
+                  "value": "api_key",
+                  "type": "string"
+                },
+                {
+                  "key": "value",
+                  "value": "{{petstoreApiKey}}",
+                  "type": "string"
+                },
+                {
+                  "key": "in",
+                  "value": "header",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC-PLACEORDER-POS-200 | POST /store/order",
+          "description": "Execution classification: automated\nMutating: yes\nExpected status: 200\nNo path, query, header, or cookie parameters are declared.\nNo authentication requirement is declared for this operation.\nRequest body sample is sourced from schema-derived required fields; verify it is valid for the target environment.\nUse an isolated test environment; this operation may create, update, or delete data.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/store/order",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const target = pm.variables.replaceIn('{{baseUrl}}');",
+                  "if (target !== 'http://127.0.0.1:4010/v2') { throw new Error('Safety guard: mutating cases are restricted to the documented loopback mock.'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-GETORDERBYID-POS-200 | GET /store/order/{orderId}",
+          "description": "Execution classification: automated\nMutating: no\nExpected status: 200\nSupply required parameters using the listed examples or schema-derived values.\nNo authentication requirement is declared for this operation.\nRequired path parameter \"orderId\" has no usable value.\nParameter \"orderId\" uses unsupported path serialization (style=simple, explode=false).",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/store/order/{{orderId}}"
+          }
+        },
+        {
+          "name": "TC-GETUSERBYNAME-POS-200 | GET /user/{username}",
+          "description": "Execution classification: automated\nMutating: no\nExpected status: 200\nSupply required parameters using the listed examples or schema-derived values.\nNo authentication requirement is declared for this operation.\nRequired path parameter \"username\" has no usable value.\nParameter \"username\" uses unsupported path serialization (style=simple, explode=false).",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/user/{{username}}"
+          }
+        },
+        {
+          "name": "TC-LOGINUSER-POS-200 | GET /user/login",
+          "description": "Execution classification: automated\nMutating: no\nExpected status: 200\nSupply required parameters using the listed examples or schema-derived values.\nNo authentication requirement is declared for this operation.\nRequired query parameter \"username\" has no usable value.\nParameter \"username\" uses unsupported query serialization (style=form, explode=false).\nRequired query parameter \"password\" has no usable value.\nParameter \"password\" uses unsupported query serialization (style=form, explode=false).",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/user/login?username={{username}}&password={{password}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Manual review (34)",
+      "description": "Resolve each case's scenario, expected result, credentials, and safe test data before sending.",
+      "item": [
+        {
+          "name": "TC-UPDATEPET-NEG-400 | PUT /pet",
+          "description": "Execution classification: manual-review\nMutating: yes\nExpected status: 400\nDefine a safe error scenario that matches the documented response without using production data.\nThe specification describes HTTP 400: Invalid ID supplied\nNo path, query, header, or cookie parameters are declared.\nProvide credentials for the declared security scheme(s) using the environment variables documented in README.md.\nRequest body sample is sourced from schema-derived required fields; verify it is valid for the target environment.\nUse an isolated test environment; this operation may create, update, or delete data.\nNot automated: the specification documents an error status but does not identify which invalid input safely triggers it.\nNo documented 2xx response; expected status requires manual review.",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/pet",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{petstoreOAuthToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"doggie\",\n  \"photoUrls\": [\n    \"sample\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const target = pm.variables.replaceIn('{{baseUrl}}');",
+                  "if (target !== 'http://127.0.0.1:4010/v2') { throw new Error('Safety guard: mutating cases are restricted to the documented loopback mock.'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-UPDATEPET-NEG-404 | PUT /pet",
+          "description": "Execution classification: manual-review\nMutating: yes\nExpected status: 404\nDefine a safe error scenario that matches the documented response without using production data.\nThe specification describes HTTP 404: Pet not found\nNo path, query, header, or cookie parameters are declared.\nProvide credentials for the declared security scheme(s) using the environment variables documented in README.md.\nRequest body sample is sourced from schema-derived required fields; verify it is valid for the target environment.\nUse an isolated test environment; this operation may create, update, or delete data.\nNot automated: the specification documents an error status but does not identify which invalid input safely triggers it.\nNo documented 2xx response; expected status requires manual review.",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/pet",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{petstoreOAuthToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"doggie\",\n  \"photoUrls\": [\n    \"sample\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const target = pm.variables.replaceIn('{{baseUrl}}');",
+                  "if (target !== 'http://127.0.0.1:4010/v2') { throw new Error('Safety guard: mutating cases are restricted to the documented loopback mock.'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-UPDATEPET-NEG-405 | PUT /pet",
+          "description": "Execution classification: manual-review\nMutating: yes\nExpected status: 405\nDefine a safe error scenario that matches the documented response without using production data.\nThe specification describes HTTP 405: Validation exception\nNo path, query, header, or cookie parameters are declared.\nProvide credentials for the declared security scheme(s) using the environment variables documented in README.md.\nRequest body sample is sourced from schema-derived required fields; verify it is valid for the target environment.\nUse an isolated test environment; this operation may create, update, or delete data.\nNot automated: the specification documents an error status but does not identify which invalid input safely triggers it.\nNo documented 2xx response; expected status requires manual review.",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/pet",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{petstoreOAuthToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"doggie\",\n  \"photoUrls\": [\n    \"sample\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const target = pm.variables.replaceIn('{{baseUrl}}');",
+                  "if (target !== 'http://127.0.0.1:4010/v2') { throw new Error('Safety guard: mutating cases are restricted to the documented loopback mock.'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-UPDATEPET-REVIEW | PUT /pet",
+          "description": "Execution classification: manual-review\nMutating: yes\nExpected status: requires manual review\nInspect the response documentation and decide which outcome should be asserted.\nNo documented 2xx response; expected status requires manual review.",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/pet",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{petstoreOAuthToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"doggie\",\n  \"photoUrls\": [\n    \"sample\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const target = pm.variables.replaceIn('{{baseUrl}}');",
+                  "if (target !== 'http://127.0.0.1:4010/v2') { throw new Error('Safety guard: mutating cases are restricted to the documented loopback mock.'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-ADDPET-NEG-405 | POST /pet",
+          "description": "Execution classification: manual-review\nMutating: yes\nExpected status: 405\nDefine a safe error scenario that matches the documented response without using production data.\nThe specification describes HTTP 405: Invalid input\nNo path, query, header, or cookie parameters are declared.\nProvide credentials for the declared security scheme(s) using the environment variables documented in README.md.\nRequest body sample is sourced from schema-derived required fields; verify it is valid for the target environment.\nUse an isolated test environment; this operation may create, update, or delete data.\nNot automated: the specification documents an error status but does not identify which invalid input safely triggers it.\nNo documented 2xx response; expected status requires manual review.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/pet",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{petstoreOAuthToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"doggie\",\n  \"photoUrls\": [\n    \"sample\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const target = pm.variables.replaceIn('{{baseUrl}}');",
+                  "if (target !== 'http://127.0.0.1:4010/v2') { throw new Error('Safety guard: mutating cases are restricted to the documented loopback mock.'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-ADDPET-REVIEW | POST /pet",
+          "description": "Execution classification: manual-review\nMutating: yes\nExpected status: requires manual review\nInspect the response documentation and decide which outcome should be asserted.\nNo documented 2xx response; expected status requires manual review.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/pet",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{petstoreOAuthToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"doggie\",\n  \"photoUrls\": [\n    \"sample\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const target = pm.variables.replaceIn('{{baseUrl}}');",
+                  "if (target !== 'http://127.0.0.1:4010/v2') { throw new Error('Safety guard: mutating cases are restricted to the documented loopback mock.'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-FINDPETSBYSTATUS-NEG-400 | GET /pet/findByStatus",
+          "description": "Execution classification: manual-review\nMutating: no\nExpected status: 400\nDefine a safe error scenario that matches the documented response without using production data.\nThe specification describes HTTP 400: Invalid status value\nSupply required parameters using the listed examples or schema-derived values.\nProvide credentials for the declared security scheme(s) using the environment variables documented in README.md.\nNot automated: the specification documents an error status but does not identify which invalid input safely triggers it.\nRequired query parameter \"status\" has no usable value.\nParameter \"status\" uses unsupported query serialization (style=form, explode=true).",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/pet/findByStatus?status={{status}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{petstoreOAuthToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC-FINDPETSBYTAGS-NEG-400 | GET /pet/findByTags",
+          "description": "Execution classification: manual-review\nMutating: no\nExpected status: 400\nDefine a safe error scenario that matches the documented response without using production data.\nThe specification describes HTTP 400: Invalid tag value\nSupply required parameters using the listed examples or schema-derived values.\nProvide credentials for the declared security scheme(s) using the environment variables documented in README.md.\nNot automated: the specification documents an error status but does not identify which invalid input safely triggers it.\nRequired query parameter \"tags\" has no usable value.\nParameter \"tags\" uses unsupported query serialization (style=form, explode=true).",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/pet/findByTags?tags={{tags}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{petstoreOAuthToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC-GETPETBYID-NEG-400 | GET /pet/{petId}",
+          "description": "Execution classification: manual-review\nMutating: no\nExpected status: 400\nDefine a safe error scenario that matches the documented response without using production data.\nThe specification describes HTTP 400: Invalid ID supplied\nSupply required parameters using the listed examples or schema-derived values.\nProvide credentials for the declared security scheme(s) using the environment variables documented in README.md.\nNot automated: the specification documents an error status but does not identify which invalid input safely triggers it.\nRequired path parameter \"petId\" has no usable value.\nParameter \"petId\" uses unsupported path serialization (style=simple, explode=false).",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/pet/{{petId}}",
+            "auth": {
+              "type": "apikey",
+              "apikey": [
+                {
+                  "key": "key",
+                  "value": "api_key",
+                  "type": "string"
+                },
+                {
+                  "key": "value",
+                  "value": "{{petstoreApiKey}}",
+                  "type": "string"
+                },
+                {
+                  "key": "in",
+                  "value": "header",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC-GETPETBYID-NEG-404 | GET /pet/{petId}",
+          "description": "Execution classification: manual-review\nMutating: no\nExpected status: 404\nDefine a safe error scenario that matches the documented response without using production data.\nThe specification describes HTTP 404: Pet not found\nSupply required parameters using the listed examples or schema-derived values.\nProvide credentials for the declared security scheme(s) using the environment variables documented in README.md.\nNot automated: the specification documents an error status but does not identify which invalid input safely triggers it.\nRequired path parameter \"petId\" has no usable value.\nParameter \"petId\" uses unsupported path serialization (style=simple, explode=false).",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/pet/{{petId}}",
+            "auth": {
+              "type": "apikey",
+              "apikey": [
+                {
+                  "key": "key",
+                  "value": "api_key",
+                  "type": "string"
+                },
+                {
+                  "key": "value",
+                  "value": "{{petstoreApiKey}}",
+                  "type": "string"
+                },
+                {
+                  "key": "in",
+                  "value": "header",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC-UPDATEPETWITHFORM-NEG-405 | POST /pet/{petId}",
+          "description": "Execution classification: manual-review\nMutating: yes\nExpected status: 405\nDefine a safe error scenario that matches the documented response without using production data.\nThe specification describes HTTP 405: Invalid input\nSupply required parameters using the listed examples or schema-derived values.\nProvide credentials for the declared security scheme(s) using the environment variables documented in README.md.\nUse an isolated test environment; this operation may create, update, or delete data.\nNot automated: the specification documents an error status but does not identify which invalid input safely triggers it.\nRequired path parameter \"petId\" has no usable value.\nParameter \"petId\" uses unsupported path serialization (style=simple, explode=false).\nSwagger formData parameters require manual implementation.\nNo documented 2xx response; expected status requires manual review.",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/pet/{{petId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{petstoreOAuthToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const target = pm.variables.replaceIn('{{baseUrl}}');",
+                  "if (target !== 'http://127.0.0.1:4010/v2') { throw new Error('Safety guard: mutating cases are restricted to the documented loopback mock.'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-UPDATEPETWITHFORM-REVIEW | POST /pet/{petId}",
+          "description": "Execution classification: manual-review\nMutating: yes\nExpected status: requires manual review\nInspect the response documentation and decide which outcome should be asserted.\nRequired path parameter \"petId\" has no usable value.\nParameter \"petId\" uses unsupported path serialization (style=simple, explode=false).\nSwagger formData parameters require manual implementation.\nNo documented 2xx response; expected status requires manual review.",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/pet/{{petId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{petstoreOAuthToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const target = pm.variables.replaceIn('{{baseUrl}}');",
+                  "if (target !== 'http://127.0.0.1:4010/v2') { throw new Error('Safety guard: mutating cases are restricted to the documented loopback mock.'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-DELETEPET-NEG-400 | DELETE /pet/{petId}",
+          "description": "Execution classification: manual-review\nMutating: yes\nExpected status: 400\nDefine a safe error scenario that matches the documented response without using production data.\nThe specification describes HTTP 400: Invalid ID supplied\nSupply required parameters using the listed examples or schema-derived values.\nProvide credentials for the declared security scheme(s) using the environment variables documented in README.md.\nUse an isolated test environment; this operation may create, update, or delete data.\nNot automated: the specification documents an error status but does not identify which invalid input safely triggers it.\nParameter \"api_key\" uses unsupported header serialization (style=simple, explode=false).\nRequired path parameter \"petId\" has no usable value.\nParameter \"petId\" uses unsupported path serialization (style=simple, explode=false).\nNo documented 2xx response; expected status requires manual review.",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "api_key",
+                "value": "{{api_key}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/pet/{{petId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{petstoreOAuthToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const target = pm.variables.replaceIn('{{baseUrl}}');",
+                  "if (target !== 'http://127.0.0.1:4010/v2') { throw new Error('Safety guard: mutating cases are restricted to the documented loopback mock.'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-DELETEPET-NEG-404 | DELETE /pet/{petId}",
+          "description": "Execution classification: manual-review\nMutating: yes\nExpected status: 404\nDefine a safe error scenario that matches the documented response without using production data.\nThe specification describes HTTP 404: Pet not found\nSupply required parameters using the listed examples or schema-derived values.\nProvide credentials for the declared security scheme(s) using the environment variables documented in README.md.\nUse an isolated test environment; this operation may create, update, or delete data.\nNot automated: the specification documents an error status but does not identify which invalid input safely triggers it.\nParameter \"api_key\" uses unsupported header serialization (style=simple, explode=false).\nRequired path parameter \"petId\" has no usable value.\nParameter \"petId\" uses unsupported path serialization (style=simple, explode=false).\nNo documented 2xx response; expected status requires manual review.",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "api_key",
+                "value": "{{api_key}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/pet/{{petId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{petstoreOAuthToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const target = pm.variables.replaceIn('{{baseUrl}}');",
+                  "if (target !== 'http://127.0.0.1:4010/v2') { throw new Error('Safety guard: mutating cases are restricted to the documented loopback mock.'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-DELETEPET-REVIEW | DELETE /pet/{petId}",
+          "description": "Execution classification: manual-review\nMutating: yes\nExpected status: requires manual review\nInspect the response documentation and decide which outcome should be asserted.\nParameter \"api_key\" uses unsupported header serialization (style=simple, explode=false).\nRequired path parameter \"petId\" has no usable value.\nParameter \"petId\" uses unsupported path serialization (style=simple, explode=false).\nNo documented 2xx response; expected status requires manual review.",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "api_key",
+                "value": "{{api_key}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/pet/{{petId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{petstoreOAuthToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const target = pm.variables.replaceIn('{{baseUrl}}');",
+                  "if (target !== 'http://127.0.0.1:4010/v2') { throw new Error('Safety guard: mutating cases are restricted to the documented loopback mock.'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-PLACEORDER-NEG-400 | POST /store/order",
+          "description": "Execution classification: manual-review\nMutating: yes\nExpected status: 400\nDefine a safe error scenario that matches the documented response without using production data.\nThe specification describes HTTP 400: Invalid Order\nNo path, query, header, or cookie parameters are declared.\nNo authentication requirement is declared for this operation.\nRequest body sample is sourced from schema-derived required fields; verify it is valid for the target environment.\nUse an isolated test environment; this operation may create, update, or delete data.\nNot automated: the specification documents an error status but does not identify which invalid input safely triggers it.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/store/order",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const target = pm.variables.replaceIn('{{baseUrl}}');",
+                  "if (target !== 'http://127.0.0.1:4010/v2') { throw new Error('Safety guard: mutating cases are restricted to the documented loopback mock.'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-GETORDERBYID-NEG-400 | GET /store/order/{orderId}",
+          "description": "Execution classification: manual-review\nMutating: no\nExpected status: 400\nDefine a safe error scenario that matches the documented response without using production data.\nThe specification describes HTTP 400: Invalid ID supplied\nSupply required parameters using the listed examples or schema-derived values.\nNo authentication requirement is declared for this operation.\nNot automated: the specification documents an error status but does not identify which invalid input safely triggers it.\nRequired path parameter \"orderId\" has no usable value.\nParameter \"orderId\" uses unsupported path serialization (style=simple, explode=false).",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/store/order/{{orderId}}"
+          }
+        },
+        {
+          "name": "TC-GETORDERBYID-NEG-404 | GET /store/order/{orderId}",
+          "description": "Execution classification: manual-review\nMutating: no\nExpected status: 404\nDefine a safe error scenario that matches the documented response without using production data.\nThe specification describes HTTP 404: Order not found\nSupply required parameters using the listed examples or schema-derived values.\nNo authentication requirement is declared for this operation.\nNot automated: the specification documents an error status but does not identify which invalid input safely triggers it.\nRequired path parameter \"orderId\" has no usable value.\nParameter \"orderId\" uses unsupported path serialization (style=simple, explode=false).",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/store/order/{{orderId}}"
+          }
+        },
+        {
+          "name": "TC-DELETEORDER-NEG-400 | DELETE /store/order/{orderId}",
+          "description": "Execution classification: manual-review\nMutating: yes\nExpected status: 400\nDefine a safe error scenario that matches the documented response without using production data.\nThe specification describes HTTP 400: Invalid ID supplied\nSupply required parameters using the listed examples or schema-derived values.\nNo authentication requirement is declared for this operation.\nUse an isolated test environment; this operation may create, update, or delete data.\nNot automated: the specification documents an error status but does not identify which invalid input safely triggers it.\nRequired path parameter \"orderId\" has no usable value.\nParameter \"orderId\" uses unsupported path serialization (style=simple, explode=false).\nNo documented 2xx response; expected status requires manual review.",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/store/order/{{orderId}}"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const target = pm.variables.replaceIn('{{baseUrl}}');",
+                  "if (target !== 'http://127.0.0.1:4010/v2') { throw new Error('Safety guard: mutating cases are restricted to the documented loopback mock.'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-DELETEORDER-NEG-404 | DELETE /store/order/{orderId}",
+          "description": "Execution classification: manual-review\nMutating: yes\nExpected status: 404\nDefine a safe error scenario that matches the documented response without using production data.\nThe specification describes HTTP 404: Order not found\nSupply required parameters using the listed examples or schema-derived values.\nNo authentication requirement is declared for this operation.\nUse an isolated test environment; this operation may create, update, or delete data.\nNot automated: the specification documents an error status but does not identify which invalid input safely triggers it.\nRequired path parameter \"orderId\" has no usable value.\nParameter \"orderId\" uses unsupported path serialization (style=simple, explode=false).\nNo documented 2xx response; expected status requires manual review.",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/store/order/{{orderId}}"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const target = pm.variables.replaceIn('{{baseUrl}}');",
+                  "if (target !== 'http://127.0.0.1:4010/v2') { throw new Error('Safety guard: mutating cases are restricted to the documented loopback mock.'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-DELETEORDER-REVIEW | DELETE /store/order/{orderId}",
+          "description": "Execution classification: manual-review\nMutating: yes\nExpected status: requires manual review\nInspect the response documentation and decide which outcome should be asserted.\nRequired path parameter \"orderId\" has no usable value.\nParameter \"orderId\" uses unsupported path serialization (style=simple, explode=false).\nNo documented 2xx response; expected status requires manual review.",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/store/order/{{orderId}}"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const target = pm.variables.replaceIn('{{baseUrl}}');",
+                  "if (target !== 'http://127.0.0.1:4010/v2') { throw new Error('Safety guard: mutating cases are restricted to the documented loopback mock.'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-CREATEUSERSWITHLISTINPUT-REVIEW | POST /user/createWithList",
+          "description": "Execution classification: manual-review\nMutating: yes\nExpected status: requires manual review\nInspect the response documentation and decide which outcome should be asserted.\nNo documented 2xx response; expected status requires manual review.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/user/createWithList",
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {}\n]",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const target = pm.variables.replaceIn('{{baseUrl}}');",
+                  "if (target !== 'http://127.0.0.1:4010/v2') { throw new Error('Safety guard: mutating cases are restricted to the documented loopback mock.'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-GETUSERBYNAME-NEG-400 | GET /user/{username}",
+          "description": "Execution classification: manual-review\nMutating: no\nExpected status: 400\nDefine a safe error scenario that matches the documented response without using production data.\nThe specification describes HTTP 400: Invalid username supplied\nSupply required parameters using the listed examples or schema-derived values.\nNo authentication requirement is declared for this operation.\nNot automated: the specification documents an error status but does not identify which invalid input safely triggers it.\nRequired path parameter \"username\" has no usable value.\nParameter \"username\" uses unsupported path serialization (style=simple, explode=false).",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/user/{{username}}"
+          }
+        },
+        {
+          "name": "TC-GETUSERBYNAME-NEG-404 | GET /user/{username}",
+          "description": "Execution classification: manual-review\nMutating: no\nExpected status: 404\nDefine a safe error scenario that matches the documented response without using production data.\nThe specification describes HTTP 404: User not found\nSupply required parameters using the listed examples or schema-derived values.\nNo authentication requirement is declared for this operation.\nNot automated: the specification documents an error status but does not identify which invalid input safely triggers it.\nRequired path parameter \"username\" has no usable value.\nParameter \"username\" uses unsupported path serialization (style=simple, explode=false).",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/user/{{username}}"
+          }
+        },
+        {
+          "name": "TC-UPDATEUSER-NEG-400 | PUT /user/{username}",
+          "description": "Execution classification: manual-review\nMutating: yes\nExpected status: 400\nDefine a safe error scenario that matches the documented response without using production data.\nThe specification describes HTTP 400: Invalid user supplied\nSupply required parameters using the listed examples or schema-derived values.\nNo authentication requirement is declared for this operation.\nRequest body sample is sourced from schema-derived required fields; verify it is valid for the target environment.\nUse an isolated test environment; this operation may create, update, or delete data.\nNot automated: the specification documents an error status but does not identify which invalid input safely triggers it.\nRequired path parameter \"username\" has no usable value.\nParameter \"username\" uses unsupported path serialization (style=simple, explode=false).\nNo documented 2xx response; expected status requires manual review.",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/user/{{username}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const target = pm.variables.replaceIn('{{baseUrl}}');",
+                  "if (target !== 'http://127.0.0.1:4010/v2') { throw new Error('Safety guard: mutating cases are restricted to the documented loopback mock.'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-UPDATEUSER-NEG-404 | PUT /user/{username}",
+          "description": "Execution classification: manual-review\nMutating: yes\nExpected status: 404\nDefine a safe error scenario that matches the documented response without using production data.\nThe specification describes HTTP 404: User not found\nSupply required parameters using the listed examples or schema-derived values.\nNo authentication requirement is declared for this operation.\nRequest body sample is sourced from schema-derived required fields; verify it is valid for the target environment.\nUse an isolated test environment; this operation may create, update, or delete data.\nNot automated: the specification documents an error status but does not identify which invalid input safely triggers it.\nRequired path parameter \"username\" has no usable value.\nParameter \"username\" uses unsupported path serialization (style=simple, explode=false).\nNo documented 2xx response; expected status requires manual review.",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/user/{{username}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const target = pm.variables.replaceIn('{{baseUrl}}');",
+                  "if (target !== 'http://127.0.0.1:4010/v2') { throw new Error('Safety guard: mutating cases are restricted to the documented loopback mock.'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-UPDATEUSER-REVIEW | PUT /user/{username}",
+          "description": "Execution classification: manual-review\nMutating: yes\nExpected status: requires manual review\nInspect the response documentation and decide which outcome should be asserted.\nRequired path parameter \"username\" has no usable value.\nParameter \"username\" uses unsupported path serialization (style=simple, explode=false).\nNo documented 2xx response; expected status requires manual review.",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/user/{{username}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const target = pm.variables.replaceIn('{{baseUrl}}');",
+                  "if (target !== 'http://127.0.0.1:4010/v2') { throw new Error('Safety guard: mutating cases are restricted to the documented loopback mock.'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-DELETEUSER-NEG-400 | DELETE /user/{username}",
+          "description": "Execution classification: manual-review\nMutating: yes\nExpected status: 400\nDefine a safe error scenario that matches the documented response without using production data.\nThe specification describes HTTP 400: Invalid username supplied\nSupply required parameters using the listed examples or schema-derived values.\nNo authentication requirement is declared for this operation.\nUse an isolated test environment; this operation may create, update, or delete data.\nNot automated: the specification documents an error status but does not identify which invalid input safely triggers it.\nRequired path parameter \"username\" has no usable value.\nParameter \"username\" uses unsupported path serialization (style=simple, explode=false).\nNo documented 2xx response; expected status requires manual review.",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/user/{{username}}"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const target = pm.variables.replaceIn('{{baseUrl}}');",
+                  "if (target !== 'http://127.0.0.1:4010/v2') { throw new Error('Safety guard: mutating cases are restricted to the documented loopback mock.'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-DELETEUSER-NEG-404 | DELETE /user/{username}",
+          "description": "Execution classification: manual-review\nMutating: yes\nExpected status: 404\nDefine a safe error scenario that matches the documented response without using production data.\nThe specification describes HTTP 404: User not found\nSupply required parameters using the listed examples or schema-derived values.\nNo authentication requirement is declared for this operation.\nUse an isolated test environment; this operation may create, update, or delete data.\nNot automated: the specification documents an error status but does not identify which invalid input safely triggers it.\nRequired path parameter \"username\" has no usable value.\nParameter \"username\" uses unsupported path serialization (style=simple, explode=false).\nNo documented 2xx response; expected status requires manual review.",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/user/{{username}}"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const target = pm.variables.replaceIn('{{baseUrl}}');",
+                  "if (target !== 'http://127.0.0.1:4010/v2') { throw new Error('Safety guard: mutating cases are restricted to the documented loopback mock.'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-DELETEUSER-REVIEW | DELETE /user/{username}",
+          "description": "Execution classification: manual-review\nMutating: yes\nExpected status: requires manual review\nInspect the response documentation and decide which outcome should be asserted.\nRequired path parameter \"username\" has no usable value.\nParameter \"username\" uses unsupported path serialization (style=simple, explode=false).\nNo documented 2xx response; expected status requires manual review.",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/user/{{username}}"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const target = pm.variables.replaceIn('{{baseUrl}}');",
+                  "if (target !== 'http://127.0.0.1:4010/v2') { throw new Error('Safety guard: mutating cases are restricted to the documented loopback mock.'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-LOGINUSER-NEG-400 | GET /user/login",
+          "description": "Execution classification: manual-review\nMutating: no\nExpected status: 400\nDefine a safe error scenario that matches the documented response without using production data.\nThe specification describes HTTP 400: Invalid username/password supplied\nSupply required parameters using the listed examples or schema-derived values.\nNo authentication requirement is declared for this operation.\nNot automated: the specification documents an error status but does not identify which invalid input safely triggers it.\nRequired query parameter \"username\" has no usable value.\nParameter \"username\" uses unsupported query serialization (style=form, explode=false).\nRequired query parameter \"password\" has no usable value.\nParameter \"password\" uses unsupported query serialization (style=form, explode=false).",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/user/login?username={{username}}&password={{password}}"
+          }
+        },
+        {
+          "name": "TC-LOGOUTUSER-REVIEW | GET /user/logout",
+          "description": "Execution classification: manual-review\nMutating: no\nExpected status: requires manual review\nInspect the response documentation and decide which outcome should be asserted.\nNo documented 2xx response; expected status requires manual review.",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/user/logout"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "throw new Error('Manual review required: this GET operation logs out the current session.');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-CREATEUSERSWITHARRAYINPUT-REVIEW | POST /user/createWithArray",
+          "description": "Execution classification: manual-review\nMutating: yes\nExpected status: requires manual review\nInspect the response documentation and decide which outcome should be asserted.\nNo documented 2xx response; expected status requires manual review.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/user/createWithArray",
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {}\n]",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const target = pm.variables.replaceIn('{{baseUrl}}');",
+                  "if (target !== 'http://127.0.0.1:4010/v2') { throw new Error('Safety guard: mutating cases are restricted to the documented loopback mock.'); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-CREATEUSER-REVIEW | POST /user",
+          "description": "Execution classification: manual-review\nMutating: yes\nExpected status: requires manual review\nInspect the response documentation and decide which outcome should be asserted.\nNo documented 2xx response; expected status requires manual review.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/user",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const target = pm.variables.replaceIn('{{baseUrl}}');",
+                  "if (target !== 'http://127.0.0.1:4010/v2') { throw new Error('Safety guard: mutating cases are restricted to the documented loopback mock.'); }"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:4010/v2",
+      "type": "string"
+    },
+    {
+      "key": "petstoreApiKey",
+      "value": "local-mock-key",
+      "type": "string"
+    },
+    {
+      "key": "petstoreOAuthToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "petstoreUsername",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "petstorePassword",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
