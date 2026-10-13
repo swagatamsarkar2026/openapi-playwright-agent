@@ -38,6 +38,7 @@ type GeneratedCase = {
   }>;
   body?: unknown;
   bodyContentType?: string;
+  bodySource?: string;
   expectedStatus?: number;
   responseExpectation?: {
     status: number;
@@ -70,7 +71,7 @@ type SchemaExpectation = {
   maximum?: number;
   minLength?: number;
   maxLength?: number;
-  requiredProperties: Array<{ name: string; schema?: SchemaExpectation }>;
+  requiredProperties?: Array<{ name: string; schema?: SchemaExpectation }>;
   items?: SchemaExpectation;
 };
 
@@ -148,7 +149,7 @@ function assertResponseSchema(value: unknown, schema: SchemaExpectation, locatio
     if (schema.minLength !== undefined) expect(value.length, location).toBeGreaterThanOrEqual(schema.minLength);
     if (schema.maxLength !== undefined) expect(value.length, location).toBeLessThanOrEqual(schema.maxLength);
   }
-  for (const property of schema.requiredProperties) {
+  for (const property of schema.requiredProperties ?? []) {
     expect(value, location).toHaveProperty(property.name);
     if (property.schema && value !== null && typeof value === "object") {
       assertResponseSchema((value as Record<string, unknown>)[property.name], property.schema, \`\${location}.\${property.name}\`);
@@ -170,6 +171,7 @@ async function attachDiagnostic(
   testInfo: TestInfo,
   testCase: GeneratedCase,
   stepKind: string,
+  stepNumber: number,
   code: string,
   message: string,
   actualStatus?: number
@@ -180,6 +182,7 @@ async function attachDiagnostic(
       method: testCase.method.toUpperCase(),
       pathTemplate: testCase.path,
       stepKind,
+      stepNumber,
       ...(testCase.expectedStatus === undefined ? {} : { expectedStatus: testCase.expectedStatus }),
       ...(actualStatus === undefined ? {} : { actualStatus }),
       code,
@@ -203,10 +206,12 @@ for (const testCase of cases) {
     const cookies: string[] = [];
     let response: APIResponse | undefined;
     let activeStepKind = "test-setup";
+    let activeStepNumber = 0;
 
     try {
       for (const [index, step] of testCase.steps.entries()) {
         activeStepKind = step.kind;
+        activeStepNumber = index + 1;
         await test.step(\`\${index + 1}. \${step.action}\`, async () => {
           if (step.kind === "prepare-url") {
             const baseUrl = process.env.API_BASE_URL ?? defaultBaseUrl;
@@ -280,7 +285,7 @@ for (const testCase of cases) {
           }
         });
       }
-      await attachDiagnostic(testInfo, testCase, activeStepKind, "passed", "API test passed.", response?.status());
+      await attachDiagnostic(testInfo, testCase, activeStepKind, activeStepNumber, "passed", "API test passed.", response?.status());
     } catch (error) {
       const actualStatus = response?.status();
       const isStatusMismatch = activeStepKind === "assert-status"
@@ -308,7 +313,7 @@ for (const testCase of cases) {
             : code === "response-too-large"
               ? "Response Content-Length exceeds the 5 MiB JSON assertion limit."
               : \`The API test failed during the \${activeStepKind} step.\`;
-      await attachDiagnostic(testInfo, testCase, activeStepKind, code, message, actualStatus);
+      await attachDiagnostic(testInfo, testCase, activeStepKind, activeStepNumber, code, message, actualStatus);
       throw new Error(message);
     }
   });

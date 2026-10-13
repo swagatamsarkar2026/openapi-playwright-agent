@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 import { randomUUID } from "node:crypto";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { Command } from "commander";
 import { createInterface } from "node:readline";
-import { relative, resolve } from "node:path";
+import { dirname, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import type { Writable } from "node:stream";
-import { approvePlan, createGuidedSession, createJsonlAuditSink, generateApprovedPlan, recordWorkflowCancellation, revisePlanSelection } from "./guided-workflow.js";
+import { approvePlan, createGuidedSession, createJsonlAuditSink, generateApprovedPlan, promoteAIDraftCases, recordAIDraftWorkflowEvent, recordWorkflowCancellation, revisePlanSelection } from "./guided-workflow.js";
 import type { AuditSink } from "./guided-workflow.js";
 import { MAX_EXECUTION_DURATION_MS, readApprovedExecutionPlan, resolveGeneratedTestFile, validateAuthorizedTarget } from "./execution.js";
 import type { ApprovedExecutionPlan } from "./execution.js";
@@ -13,8 +14,13 @@ import type { PlannedTestCase } from "./model.js";
 import { buildTestPlan } from "./openapi.js";
 import { writeGeneratedTests, writePlan } from "./generator.js";
 import { redactSensitiveText } from "./redaction.js";
+import { formatRunSummary } from "./run-summary.js";
+import { renderManualCaseDrafts } from "./ai-draft-report.js";
+import { createOpenAICaseDraftProvider } from "./openai-provider.js";
+import type { DraftManualCase, ManualCaseOperationContext } from "./model-provider.js";
 
 const program = new Command();
+const aiDraftBatchSize = 20;
 program
   .name("openapi-test-agent")
   .description("Prepare and generate Playwright API tests from Swagger and OpenAPI specs.")
@@ -53,9 +59,11 @@ program.command("generate")
   });
 
 program.command("guide")
-  .description("Review and approve a test plan before generating tests; this command does not run API requests.")
+  .description("Review and approve a test plan before generating tests; this command does not run API-under-test requests.")
   .requiredOption("-s, --spec <file>", "Local Swagger/OpenAPI JSON or YAML spec")
   .option("--objective <text>", "Optional testing objective for this review")
+  .option("--ai-draft-cases", "Ask OpenAI to draft additional manual-review cases")
+  .option("--ai-drafts-out <file>", "Markdown output for AI manual-case proposals", "test-results/ai-manual-case-drafts.md")
   .option("-o, --out <file>", "Generated test output path", "tests/generated/api.spec.ts")
   .option("--audit <file>", "Local JSONL workflow audit path", "test-results/guided-workflow.jsonl")
   .action(async options => {
@@ -76,7 +84,97 @@ program.command("guide")
       const objective = objectiveInput.trim() || undefined;
       session = await createGuidedSession(options.spec, objective, audit);
       const activeSession = session;
-      const allCases = activeSession.plan.operations.flatMap(operation => operation.testCases);
+      let allCases = activeSession.plan.operations.flatMap(operation => operation.testCases);
+      if (options.aiDraftCases) {
+        const requestCount = Math.ceil(activeSession.plan.operations.length / aiDraftBatchSize);
+        const consent = await prompt.question(
+          `AI drafting sends the objective, redacted route templates, operation summaries, status declarations, evidence pointers, and eligible read-only automation candidate summaries to OpenAI in ${requestCount} request(s); it excludes request samples, bodies, and API-under-test credentials. OPENAI_API_KEY is used only for request authentication, not prompt/report content. Type SEND TO OPENAI to continue: `
+        );
+        if (consent?.trim() === "SEND TO OPENAI") {
+          if (!activeSession.objective) {
+            console.log("AI case drafting needs a testing objective. Continuing with deterministic review only.");
+          } else {
+            await recordAIDraftWorkflowEvent(activeSession, "ai_drafts_requested", "success");
+            try {
+              let nextCandidateRef = 1;
+              const operationContexts: ManualCaseOperationContext[] = activeSession.plan.operations.map((operation, index) => ({
+                operationRef: `OP-${String(index + 1).padStart(3, "0")}`,
+                operationId: operation.id,
+                method: operation.method,
+                path: operation.path,
+                summary: operation.summary,
+                successStatuses: operation.successStatuses,
+                errorResponses: operation.documentedErrorResponses.map(error => ({ status: error.status, description: error.description })),
+                evidencePointers: [...new Set(operation.testCases.flatMap(testCase => testCase.evidence.map(evidence => evidence.pointer)))],
+                automationCandidates: operation.testCases
+                  .filter(testCase => testCase.execution === "automated" && !testCase.mutating
+                    && testCase.warnings.length === 0 && testCase.expectedStatus !== undefined && testCase.evidence.length > 0)
+                  .map(testCase => ({
+                    candidateRef: `AUTO-${String(nextCandidateRef++).padStart(3, "0")}`,
+                    caseId: testCase.id,
+                    title: testCase.title,
+                    expectedStatus: testCase.expectedStatus!,
+                    evidencePointers: testCase.evidence.map(evidence => evidence.pointer)
+                  }))
+              }));
+              const provider = createOpenAICaseDraftProvider();
+              const drafts: DraftManualCase[] = [];
+              for (let start = 0; start < operationContexts.length; start += aiDraftBatchSize) {
+                drafts.push(...await provider.draftCases({
+                  objective: activeSession.objective,
+                  operations: operationContexts.slice(start, start + aiDraftBatchSize)
+                }));
+              }
+              for (const draft of drafts) printManualCaseDraft(draft);
+              const draftsPath = resolve(options.aiDraftsOut);
+              await mkdir(dirname(draftsPath), { recursive: true });
+              await writeFile(draftsPath, renderManualCaseDrafts(drafts, activeSession.plan.specFingerprint), { encoding: "utf8", flag: "wx" });
+              await recordAIDraftWorkflowEvent(activeSession, "ai_drafts_generated", "success");
+              console.log(`Saved ${drafts.length} manual-review proposal(s) to ${draftsPath}. They are not part of the executable approved plan.`);
+              const promotableDrafts = drafts.filter(draft => draft.automationCandidateCaseId);
+              if (promotableDrafts.length > 0) {
+                for (const draft of promotableDrafts) {
+                  console.log(`  ${draft.draftId} maps to existing read-only Playwright candidate ${draft.automationCandidateCaseId}. Promotion reuses its exact OpenAPI-derived inputs and assertions; AI-written steps are not executed.`);
+                }
+                const promotionInput = await prompt.question(
+                  "To add mapped candidates to the plan for normal review, enter AI draft IDs separated by commas, or 'none': "
+                );
+                if (promotionInput === undefined) {
+                  await recordWorkflowCancellation(activeSession);
+                  console.log("Review cancelled. No tests were generated and no API-under-test requests were sent.");
+                  return;
+                }
+                const requestedDraftIds = promotionInput.trim().toLowerCase() === "none"
+                  ? []
+                  : promotionInput.split(",").map(value => value.trim()).filter(Boolean);
+                const draftsById = new Map(promotableDrafts.map(draft => [draft.draftId, draft]));
+                const selectedDrafts = requestedDraftIds.map(draftId => draftsById.get(draftId));
+                if (selectedDrafts.some(draft => !draft) || new Set(requestedDraftIds).size !== requestedDraftIds.length) {
+                  console.log("No AI drafts promoted. Use only the displayed AI draft IDs, without duplicates.");
+                } else if (selectedDrafts.length > 0) {
+                  const promotions = selectedDrafts.map(draft => ({
+                    draftId: draft!.draftId,
+                    operationId: draft!.operationId,
+                    sourceCaseId: draft!.automationCandidateCaseId!
+                  }));
+                  try {
+                    const promotedIds = await promoteAIDraftCases(activeSession, promotions);
+                    console.log(`Promoted ${promotedIds.length} grounded candidate(s) into plan revision ${activeSession.planRevision}. Select and approve them below before generation.`);
+                  } catch (error) {
+                    console.error(error instanceof Error ? error.message : "AI draft promotion was rejected.");
+                  }
+                }
+              }
+              allCases = activeSession.plan.operations.flatMap(operation => operation.testCases);
+            } catch (error) {
+              await recordAIDraftWorkflowEvent(activeSession, "ai_drafts_generated", "failed", "AIDraftGenerationError");
+              console.error(error instanceof Error ? error.message : "AI case drafting failed. Continuing with deterministic review only.");
+            }
+          }
+        } else {
+          console.log("AI drafting not authorized. Continuing with deterministic review only.");
+        }
+      }
       const printReview = (): void => {
         console.log(`\nAPI: ${activeSession.plan.title} ${activeSession.plan.version} (${activeSession.plan.specVersion})`);
         console.log(`Spec SHA-256: ${activeSession.plan.specFingerprint}`);
@@ -91,7 +189,7 @@ program.command("guide")
         const selection = (await prompt.question("\nCase IDs to include (comma-separated), 'all', or 'cancel': ")) ?? "";
         if (!selection.trim() || selection.trim().toLowerCase() === "cancel") {
           await recordWorkflowCancellation(activeSession);
-          console.log("Review cancelled. No tests were generated and no API requests were sent.");
+          console.log("Review cancelled. No tests were generated and no API-under-test requests were sent.");
           return;
         }
 
@@ -115,7 +213,7 @@ program.command("guide")
         const decision = ((await prompt.question("Type APPROVE to approve and generate, 'edit' to revise, or 'cancel': ")) ?? "").trim();
         if (decision.toLowerCase() === "cancel" || decision.length === 0) {
           await recordWorkflowCancellation(session);
-          console.log("Review cancelled. No tests were generated and no API requests were sent.");
+          console.log("Review cancelled. No tests were generated and no API-under-test requests were sent.");
           return;
         }
         if (decision.toLowerCase() === "edit") {
@@ -130,13 +228,13 @@ program.command("guide")
         const approval = await approvePlan(activeSession, activeSession.planRevision, activeSession.selectedCaseIds);
         const result = await generateApprovedPlan(activeSession, approval.token, options.out);
         console.log(`\nGenerated ${result.automatedCount} automated candidate(s) and ${result.manualReviewCount} manual-review case(s) to ${result.outputPath}.`);
-        console.log("No API requests were sent. Run the approved file separately only after confirming an authorized non-production target.");
+        console.log("No API-under-test requests were sent. Run the approved file separately only after confirming an authorized non-production target.");
         return;
       }
     } catch (error) {
       if (cancelledBySignal) {
         if (session) await recordWorkflowCancellation(session);
-        console.log("\nReview cancelled. No tests were generated and no API requests were sent.");
+        console.log("\nReview cancelled. No tests were generated and no API-under-test requests were sent.");
         return;
       }
       throw error;
@@ -151,6 +249,7 @@ program.command("run")
   .requiredOption("--base-url <url>", "Authorized API target; HTTPS is required except for loopback")
   .option("-f, --file <file>", "Guided-approved test file", "tests/generated/api.spec.ts")
   .option("--results <file>", "Machine-readable JSON results path", "test-results/api-results.json")
+  .option("--html-report <file>", "HTML report path", "test-results/api-report.html")
   .option("--audit <file>", "Local JSONL workflow audit path", "test-results/guided-workflow.jsonl")
   .option("--include-mutating", "Request separate approval for selected mutating tests", false)
   .action(async options => {
@@ -185,6 +284,7 @@ program.command("run")
     const env = { ...process.env };
     env.API_BASE_URL = target.url;
     env.API_TEST_RESULTS = resolve(options.results);
+    env.API_TEST_HTML_REPORT = resolve(options.htmlReport);
     env.API_EXECUTION_APPROVAL = executionPlan.approvalBinding;
     env.API_PLAN_ID = executionPlan.planId;
     env.API_PLAN_REVISION = String(executionPlan.planRevision);
@@ -279,11 +379,25 @@ program.command("run")
     }
   });
 
+program.command("summarize")
+  .description("Interpret recorded outcomes from an API run results file.")
+  .requiredOption("--results <file>", "Machine-readable API results JSON file")
+  .action(async options => {
+    const resultsText = await readFile(resolve(options.results), "utf8");
+    let results: unknown;
+    try {
+      results = JSON.parse(resultsText);
+    } catch {
+      throw new Error("The API results file is not valid JSON.");
+    }
+    console.log(formatRunSummary(results));
+  });
+
 await program.parseAsync();
 
 function printCase(testCase: PlannedTestCase): void {
   console.log(`\n[${testCase.id}] ${testCase.title}`);
-  console.log(`  Classification: ${testCase.caseType}; execution: ${testCase.execution}; source: specification-derived candidate`);
+  console.log(`  Classification: ${testCase.caseType}; execution: ${testCase.execution}; source: ${testCase.id.startsWith("AI-DRAFT-") ? "AI proposal mapped to exact specification-derived candidate" : "specification-derived candidate"}`);
   console.log(`  Summary (untrusted specification text): ${redactSensitiveText(testCase.summary)}`);
   if (testCase.parameters.length > 0) {
     console.log("  Inputs:");
@@ -305,6 +419,23 @@ function printCase(testCase: PlannedTestCase): void {
     console.log(`  Evidence: SHA-256 ${evidence.specFingerprint}; JSON Pointer ${evidence.pointer}`);
   }
   for (const warning of testCase.warnings) console.log(`  Uncertainty/review: ${redactSensitiveText(warning)}`);
+}
+
+function printManualCaseDraft(draft: DraftManualCase): void {
+  console.log(`\n[${draft.draftId}] ${redactSensitiveText(draft.title)} (AI proposal; manual review required; not executable)`);
+  console.log(`  Operation: ${redactSensitiveText(draft.operationId)}`);
+  console.log(`  Intent: ${redactSensitiveText(draft.intent)}`);
+  for (const precondition of draft.preconditions) console.log(`  Precondition: ${redactSensitiveText(precondition)}`);
+  for (const [index, step] of draft.steps.entries()) {
+    console.log(`  Step ${index + 1}: ${redactSensitiveText(step.action)}\n    Expected: ${redactSensitiveText(step.expectedResult)}`);
+  }
+  console.log(`  Evidence pointers: ${draft.evidencePointers.join(", ")}`);
+  if (draft.automationCandidateCaseId) {
+    console.log(`  Potential Playwright basis: ${draft.automationCandidateCaseId} (exact generated inputs and assertions; promotion requires separate confirmation)`);
+  } else {
+    console.log("  Potential Playwright basis: none is fully grounded; keep manual until reviewed inputs and assertions are available.");
+  }
+  for (const question of draft.openQuestions) console.log(`  Open question: ${redactSensitiveText(question)}`);
 }
 
 async function recordExecutionFailure(
