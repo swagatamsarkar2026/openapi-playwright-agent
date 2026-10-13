@@ -58,34 +58,39 @@ To present in a browser or print slides to PDF, open the [standalone HTML presen
 
 The local mock implements read-only `GET /store/inventory` and in-memory `POST /store/order` plus order readback for the guarded write rehearsal. Inventory requires the contract's `api_key` header; order routes do not. Orders exist only in the mock process and are cleared when it stops. The mock binds only to `127.0.0.1`; it does not emulate or verify other Petstore operations. See the [walkthrough](./docs/petstore-demo-walkthrough.md) for the separate mutation approvals and local-only rehearsal.
 
-The full analyzer-generated snapshot from the contract fetched on 2026-10-10 is [the Petstore live test plan](./docs/petstore-live-plan-2026-10-10.md). It covers all 20 documented operations and 43 derived cases. `TC-GETINVENTORY-POS-200` has passed against both the mock and live service, including a guarded local rehearsal on 2026-10-11 (one pass, HTTP 200). A later read-only `GET /pet/findByStatus?status=available` returned HTTP 200 but failed response-schema validation when a nested schema omitted `requiredProperties`. The generator fix has regression coverage and passes local checks, but the post-fix live case is deferred from the demo: the spec declares OAuth2 and only the Petstore API key is available. See the [inventory-only demo walkthrough](./docs/petstore-demo-walkthrough.md).
+The full analyzer-generated snapshot from the contract fetched on 2026-10-10 is [the Petstore live test plan](./docs/petstore-live-plan-2026-10-10.md). It covers all 20 documented operations and 43 derived cases. `TC-GETINVENTORY-POS-200` passed the guarded loopback run on 2026-10-13 using plan revision 2 (one pass, expected/actual HTTP 200, zero failures/skips); the manual Postman inventory request returned the fixture values `available: 7`, `pending: 2`, `sold: 3`. The previously recorded public Petstore inventory pass is historical evidence; the current demo does not send a new public request. A later read-only `GET /pet/findByStatus?status=available` returned HTTP 200 but failed response-schema validation when a nested schema omitted `requiredProperties`. The generator fix has regression coverage and passes local checks, but the post-fix live case is deferred from the demo: the spec declares OAuth2 and only the Petstore API key is available. See the [inventory-only demo walkthrough](./docs/petstore-demo-walkthrough.md).
+
+The following commands are for Windows PowerShell. Run them from the repository root (`Test-Path .\src\cli.ts` should return `True`). Use `npm.cmd` and `npx.cmd` if PowerShell blocks the `.ps1` wrappers; use `curl.exe` to avoid PowerShell's `curl` alias.
 
 Start the mock in one terminal:
 
-```sh
-npm run mock:petstore
+```powershell
+npm.cmd run mock:petstore
 ```
 
 In another terminal, fetch the current contract and run the guided review:
 
-```sh
-curl -fsSL https://petstore.swagger.io/v2/swagger.json -o /tmp/petstore-live-swagger.json
-npx tsx src/cli.ts guide --spec /tmp/petstore-live-swagger.json --objective "Validate the Petstore inventory read operation" --out tests/generated/petstore-live-inventory.spec.ts --audit /tmp/petstore-guided.jsonl
+```powershell
+$specPath = Join-Path $env:TEMP 'petstore-live-swagger.json'
+$guidedAudit = Join-Path $env:TEMP 'petstore-guided.jsonl'
+curl.exe -fsSL https://petstore.swagger.io/v2/swagger.json -o $specPath
+npx.cmd tsx src/cli.ts guide --spec $specPath --objective "Validate the Petstore inventory read operation" --out tests/generated/petstore-live-inventory.spec.ts --audit $guidedAudit
 ```
 
-At the case-selection prompt, enter `TC-GETINVENTORY-POS-200`, then type `APPROVE`. Run that approved file against the mock first:
+At the case-selection prompt, enter only `TC-GETINVENTORY-POS-200`, not `all`, then type `APPROVE`. Run that approved file against the mock first:
 
-```sh
-API_KEY_API_KEY=local-mock-key npx tsx src/cli.ts run --base-url http://127.0.0.1:4010/v2 --file tests/generated/petstore-live-inventory.spec.ts --results /tmp/petstore-mock-results.json --audit /tmp/petstore-mock-run.jsonl
+```powershell
+$env:API_KEY_API_KEY = 'local-mock-key'
+$mockResults = Join-Path $env:TEMP 'petstore-inventory-mock-results.json'
+$mockReport = Join-Path $env:TEMP 'petstore-inventory-mock-report.html'
+$mockAudit = Join-Path $env:TEMP 'petstore-inventory-mock-run.jsonl'
+npx.cmd tsx src/cli.ts run --base-url http://127.0.0.1:4010/v2 --file tests/generated/petstore-live-inventory.spec.ts --results $mockResults --html-report $mockReport --audit $mockAudit
+Remove-Item Env:API_KEY_API_KEY
 ```
 
-After the local run passes, use the same file against the live read-only Petstore endpoint:
+The `run` command requires target, authentication, and execution confirmations. The demo stops after the loopback run and uses the previously recorded public result as historical evidence; do not send a new public request as part of the presentation. Petstore is a shared public service. Any separately authorized live read must be treated as a distinct execution, use credentials only in the process environment, and complete all confirmations. Keep mutations mock-only until their live effects and cleanup are understood. Use `$env:TEMP` for temporary outputs because Playwright clears `test-results` at the start of a run.
 
-```sh
-API_KEY_API_KEY=special-key npx tsx src/cli.ts run --base-url https://petstore.swagger.io/v2 --file tests/generated/petstore-live-inventory.spec.ts --results /tmp/petstore-live-results.json --html-report test-results/petstore-live-inventory-report.html --audit /tmp/petstore-live-run.jsonl
-```
-
-The `run` command still requires target, authentication, and execution confirmations. The sample key is scoped to that command and must not be saved in a file. Petstore is a shared public demo service; a local mock pass does not verify its availability or behavior. Keep mutations mock-only until their live effects and cleanup are understood. Result paths use `/tmp` because Playwright clears `test-results` at the start of a run.
+For an optional request-by-request comparison, import [the corrected Petstore Postman collection](./examples/petstore/petstore-manual.postman_collection.json). Its inventory API-key auth uses header `api_key` with the collection variable `petstoreApiKey=local-mock-key`. The 43 entries are case templates, not passing tests. The loopback mock supports only inventory and order routes; review the walkthrough for supported routes, case prerequisites, and mutation safeguards. Do not run the collection as a batch or point mutating cases at public Petstore.
 
 ### Guided MVP1 review and generation
 

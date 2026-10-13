@@ -1,7 +1,7 @@
 # Service-Line Demo Instructions
 
 **Audience:** presenter and service-line reviewers<br>
-**Updated:** 2026-10-12<br>
+**Updated:** 2026-10-13<br>
 **Recommended format:** 15-minute core demo, plus 5 minutes for the optional mock-write segment and questions
 
 ## Purpose
@@ -22,11 +22,13 @@ Keep these outcomes distinct when describing coverage:
 | Frankfurter live `GET /latest` | Guarded run passed with HTTP 200 and response-schema validation | The workflow also handles an OpenAPI 3.1 contract and a second public read-only API. |
 | Petstore `GET /pet/findByStatus` | HTTP 200 response, but generated schema assertion failed | An attempted case, not passing coverage. Keep it excluded: OAuth2 is declared, while the available sample key is not an OAuth token. |
 
-The 2026-10-11 clean-copy rehearsal used fresh `npm ci` in an isolated copy and passed that checkpoint's 32-test suite, typecheck, build, and Playwright discovery. Current Windows verification on 2026-10-12 passed typecheck and build; unit tests reported 31 passed, 0 failed, and 1 skipped because Windows `child.kill('SIGINT')` terminates the child instead of delivering a catchable signal. Playwright discovery listed 52 tests in 7 files because local generated specs are present. No live OpenAI call or public Petstore mutation was made. The colleague's own clean-setup acceptance run is still the final Phase 6 check.
+The 2026-10-11 clean-copy rehearsal used fresh `npm ci` in an isolated copy and passed that checkpoint's 32-test suite, typecheck, build, and Playwright discovery. Current Windows verification on 2026-10-12 passed typecheck and build; unit tests reported 31 passed, 0 failed, and 1 skipped because Windows `child.kill('SIGINT')` terminates the child instead of delivering a catchable signal. Playwright discovery listed 52 tests in 7 files because local generated specs are present. On 2026-10-13, the demo rehearsal selected only `TC-GETINVENTORY-POS-200` (plan revision 2) and passed against the loopback mock: HTTP 200, one pass, zero failures/skips. The manual Postman inventory request returned the expected fixture data. No live OpenAI call or public Petstore mutation was made. The colleague's own clean-setup acceptance run is still the final Phase 6 check.
 
 ## Presenter Preparation
 
 From the repository root, use Node.js 20 or newer:
+
+In PowerShell, confirm `Test-Path .\src\cli.ts` returns `True` before running these commands. If it returns `False`, change to the repository directory (for this checkout, `Set-Location C:\Workspace\openapi-playwright-agent`); a `C:\Workspace\src\cli.ts` module error means the command was launched from the parent `C:\Workspace` directory. Use the `.cmd` shims shown here if PowerShell blocks `npm.ps1` or `npx.ps1`; no execution-policy change is needed. If `npx.cmd` unexpectedly offers to install `tsx`, cancel and verify the repository directory and that project dependencies are installed.
 
 ```powershell
 npm.cmd ci
@@ -66,14 +68,12 @@ In Terminal B, fetch the public contract as analysis input, then start guided re
 
 ```powershell
 $specPath = Join-Path $env:TEMP 'petstore-demo-swagger.json'
-$planPath = Join-Path $env:TEMP 'petstore-demo-plan.md'
-$guidedAudit = Join-Path $env:TEMP 'petstore-demo-guided.jsonl'
+$guidedAudit = Join-Path $env:TEMP 'petstore-inventory-guided.jsonl'
 curl.exe -fsSL https://petstore.swagger.io/v2/swagger.json -o $specPath
-npx.cmd tsx src/cli.ts analyze --spec $specPath --out $planPath
-npx.cmd tsx src/cli.ts guide --spec $specPath --objective "Validate the Petstore inventory read operation" --out tests/generated/petstore-demo-inventory.spec.ts --audit $guidedAudit
+npx.cmd tsx src/cli.ts guide --spec $specPath --objective "Validate the Petstore inventory read operation" --out tests/generated/petstore-live-inventory.spec.ts --audit $guidedAudit
 ```
 
-At case selection, enter `TC-GETINVENTORY-POS-200`. Inspect its expected HTTP 200, evidence pointers, and authentication requirement; then type `APPROVE` to generate. This fetches the contract and prepares a test, but does not call an API operation.
+At case selection, enter only `TC-GETINVENTORY-POS-200`, not `all`. Confirm one case is selected. Inspect its expected HTTP 200, evidence pointers, and authentication requirement; then type `APPROVE` to generate. This fetches the contract and prepares a test, but does not call an API operation. The 2026-10-13 rehearsal generated plan revision 2 with exactly this case.
 
 Talking point: the full Petstore contract inventory contains 20 operations and 43 cases. The inventory case is selected because its input and expected response are sufficiently grounded. Many other candidates remain manual or deferred rather than guessed.
 
@@ -81,13 +81,15 @@ Talking point: the full Petstore contract inventory contains 20 operations and 4
 
 ```powershell
 $env:API_KEY_API_KEY = 'local-mock-key'
-$inventoryResults = Join-Path $env:TEMP 'petstore-demo-inventory-results.json'
-$inventoryReport = Join-Path $env:TEMP 'petstore-demo-inventory-report.html'
-$inventoryAudit = Join-Path $env:TEMP 'petstore-demo-inventory-run.jsonl'
-npx.cmd tsx src/cli.ts run --base-url http://127.0.0.1:4010/v2 --file tests/generated/petstore-demo-inventory.spec.ts --results $inventoryResults --html-report $inventoryReport --audit $inventoryAudit
+$inventoryResults = Join-Path $env:TEMP 'petstore-inventory-mock-results.json'
+$inventoryReport = Join-Path $env:TEMP 'petstore-inventory-mock-report.html'
+$inventoryAudit = Join-Path $env:TEMP 'petstore-inventory-mock-run.jsonl'
+npx.cmd tsx src/cli.ts run --base-url http://127.0.0.1:4010/v2 --file tests/generated/petstore-live-inventory.spec.ts --results $inventoryResults --html-report $inventoryReport --audit $inventoryAudit
 ```
 
 At the prompts, confirm the loopback mock as `AUTHORIZED NON-PRODUCTION`, the local key as `AUTHENTICATION CONFIGURED`, and the approved plan as `RUN APPROVED`. Expected result: one passed case, HTTP 200, zero failures, zero skips, and zero mutations.
+
+The 2026-10-13 rehearsal passed `TC-GETINVENTORY-POS-200` in 22 ms, with expected/actual HTTP 200 and one pass. Results are in `$env:TEMP\petstore-inventory-mock-results.json` and `$env:TEMP\petstore-inventory-mock-report.html`.
 
 Summarize the recorded result without sending another request:
 
@@ -146,6 +148,16 @@ curl.exe -i http://127.0.0.1:4010/v2/store/order/1
 
 Stop the mock with Ctrl+C, restart it, then repeat the readback command. The order should return HTTP 404 because the mock's in-memory state was cleared. Stop the mock again after the demo.
 
+## Optional: Manual Postman Comparison
+
+Import [the corrected Petstore Postman collection](../examples/petstore/petstore-manual.postman_collection.json) to compare one manual request with the guarded CLI result. If an older copy is already imported, remove it and import the updated JSON. The inventory API-key authorization uses key `api_key`, value `{{petstoreApiKey}}`, added to the header; the collection variable defaults to `local-mock-key`.
+
+The collection defaults to the loopback mock. Send only `TC-GETINVENTORY-POS-200` during this comparison; it returned `{"available":7,"pending":2,"sold":3}` in the 2026-10-13 rehearsal. The mock implements only `GET /store/inventory`, `POST /store/order`, and `GET /store/order/{orderId}`; other routes return 404. Do not run the full collection as a batch. Mutating requests are restricted by a pre-request guard to the loopback target, and the logout request remains blocked pending review. This manual request is not a replacement for the guarded CLI result.
+
+## Demo Sequence
+
+The core demo is: start the loopback mock; fetch the current spec and guide/approve only the inventory case; run it through the guarded CLI and show the local report; present existing public-read evidence without issuing a new public request; then stop the mock with Ctrl+C. The Postman inventory request is an optional manual comparison after the CLI pass. The optional order-write rehearsal is a separate segment and requires its own mutation approval.
+
 ## Likely Questions and Answers
 
 **Is this an AI agent?**<br>
@@ -178,6 +190,9 @@ A colleague must run the walkthrough from their own clean setup and record accep
 ## Troubleshooting and Guardrails
 
 - **Mock will not start:** check whether port `4010` is already occupied. Stop the existing mock or resolve the port conflict; do not silently point the test at public Petstore.
+- **PowerShell says scripts are disabled:** invoke `npm.cmd` or `npx.cmd` instead of `npm` or `npx`; use `curl.exe` instead of `curl`. Do not weaken the machine or user execution policy for this walkthrough.
+- **`npx` asks to install `tsx`:** cancel the prompt, verify the terminal is at the repository root, and confirm the project's dependencies have been installed. Running `npx` from the parent directory can fetch a temporary `tsx` package that still cannot resolve `src/cli.ts`.
+- **CLI reports `ERR_MODULE_NOT_FOUND` for `C:\Workspace\src\cli.ts`:** the terminal is one directory above the repository. Run `Set-Location` to the repository root and verify `Test-Path .\src\cli.ts` before retrying.
 - **Generated file is rejected as stale or unapproved:** rerun `guide`, select the intended case, and approve the newly generated revision. Do not bypass integrity checks or invoke Playwright directly.
 - **Public service is unavailable:** stop retrying during the presentation. Show the recorded result as historical evidence and continue with the local mock.
 - **Authentication prompt does not match the selected API:** cancel. Do not use the Petstore API key as an OAuth token or substitute unrelated credentials.
