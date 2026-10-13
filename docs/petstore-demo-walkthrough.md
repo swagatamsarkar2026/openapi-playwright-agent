@@ -4,12 +4,14 @@ This walkthrough demonstrates the guarded OpenAPI-to-Playwright workflow with on
 
 `GET /pet/findByStatus` is not part of this walkthrough. The live spec declares OAuth2 for that operation, and the available Petstore API key does not satisfy that requirement. Its response-schema fix has local regression coverage, but the post-fix live case is unverified and deferred.
 
+The commands below use Windows PowerShell. Run them from the repository root; verify `Test-Path .\src\cli.ts` returns `True` before invoking the CLI. For this checkout, use `Set-Location C:\Workspace\openapi-playwright-agent` if needed. If PowerShell blocks `npm.ps1` or `npx.ps1`, use the `.cmd` shims shown here rather than changing the execution policy. Use `curl.exe` so PowerShell does not substitute its `curl` alias. If `npx.cmd` unexpectedly offers to install `tsx`, cancel and check the working directory and project dependencies before retrying.
+
 ## 1. Start the local mock
 
 In a terminal from the repository root:
 
-```sh
-npm run mock:petstore
+```powershell
+npm.cmd run mock:petstore
 ```
 
 The mock binds to `127.0.0.1:4010`. `GET /v2/store/inventory` requires an `api_key` header and returns fixture data from `examples/petstore/mock-data.json`. `POST /v2/store/order` stores an order in process memory and returns its generated ID; `GET /v2/store/order/{orderId}` reads it back. Stop the mock to discard all order data.
@@ -18,35 +20,47 @@ The mock binds to `127.0.0.1:4010`. `GET /v2/store/inventory` requires an `api_k
 
 In a second terminal, fetch the live Swagger 2.0 contract and start guided review:
 
-```sh
-curl -fsSL https://petstore.swagger.io/v2/swagger.json -o /tmp/petstore-live-swagger.json
-npx tsx src/cli.ts guide \
-  --spec /tmp/petstore-live-swagger.json \
-  --objective "Validate the Petstore inventory read operation" \
-  --out tests/generated/petstore-live-inventory.spec.ts \
-  --audit /tmp/petstore-inventory-guided.jsonl
+```powershell
+$specPath = Join-Path $env:TEMP 'petstore-live-swagger.json'
+$guidedAudit = Join-Path $env:TEMP 'petstore-inventory-guided.jsonl'
+curl.exe -fsSL https://petstore.swagger.io/v2/swagger.json -o $specPath
+npx.cmd tsx src/cli.ts guide --spec $specPath --objective "Validate the Petstore inventory read operation" --out tests/generated/petstore-live-inventory.spec.ts --audit $guidedAudit
 ```
 
-At the case-selection prompt, enter `TC-GETINVENTORY-POS-200`. Review the displayed evidence and steps, then type the exact word `APPROVE`. This generates the selected case; it sends no request to the API under test.
+At the case-selection prompt, enter only `TC-GETINVENTORY-POS-200`; do not enter `all` for this inventory-only walkthrough. Review the displayed evidence and steps, then type the exact word `APPROVE`. This generates the selected case; it sends no request to the API under test. Selecting `all` instead generates every selected case in the same file, including manual-review and mutating cases.
 
 ## 3. Run against the local mock
 
-```sh
-API_KEY_API_KEY=local-mock-key npx tsx src/cli.ts run \
-  --base-url http://127.0.0.1:4010/v2 \
-  --file tests/generated/petstore-live-inventory.spec.ts \
-  --results /tmp/petstore-inventory-mock-results.json \
-  --html-report /tmp/petstore-inventory-mock-report.html \
-  --audit /tmp/petstore-inventory-mock-run.jsonl
+```powershell
+$env:API_KEY_API_KEY = 'local-mock-key'
+$mockResults = Join-Path $env:TEMP 'petstore-inventory-mock-results.json'
+$mockReport = Join-Path $env:TEMP 'petstore-inventory-mock-report.html'
+$mockAudit = Join-Path $env:TEMP 'petstore-inventory-mock-run.jsonl'
+npx.cmd tsx src/cli.ts run --base-url http://127.0.0.1:4010/v2 --file tests/generated/petstore-live-inventory.spec.ts --results $mockResults --html-report $mockReport --audit $mockAudit
+Remove-Item Env:API_KEY_API_KEY
 ```
 
 Confirm the loopback target, the local mock credential, and execution at the prompts using the exact phrases shown by the CLI: `AUTHORIZED NON-PRODUCTION`, `AUTHENTICATION CONFIGURED`, and `RUN APPROVED`. Expected result: one passing inventory case with HTTP 200 and no mutating cases.
 
+**Demo rehearsal (2026-10-13):** guided review selected only `TC-GETINVENTORY-POS-200` for plan revision 2. The guarded run against `http://127.0.0.1:4010/v2` passed: expected/actual HTTP 200, 22 ms, one pass, zero failures/skips, and zero mutations. The JSON and HTML report are `$env:TEMP\petstore-inventory-mock-results.json` and `$env:TEMP\petstore-inventory-mock-report.html`.
+
 **Rehearsal result (2026-10-11):** `TC-GETINVENTORY-POS-200` passed against the loopback mock with expected/actual HTTP 200 in 94 ms; one pass, zero failures/skips, and zero mutating cases. The JSON and HTML outputs were written under `/tmp/petstore-inventory-mock-*`. The mock was stopped after the run.
 
-## 4. Present the live evidence
+## 4. Manually review cases with Postman
 
-The existing recorded live run passed `TC-GETINVENTORY-POS-200` against `https://petstore.swagger.io/v2`: expected and actual HTTP 200, one pass, and zero failures or skips. Use the retained result and HTML snapshot in `test-results/` if available; do not rerun the public service just to demonstrate the workflow. Petstore is shared and its availability is not guaranteed.
+Import [the Petstore Postman collection](../examples/petstore/petstore-manual.postman_collection.json) into Postman. It contains the 43 cases from the approved plan, split into 9 automated candidates and 34 manual-review cases. The collection defaults to `http://127.0.0.1:4010/v2`; start the mock in step 1 before sending requests.
+
+If you imported the collection before 2026-10-13, remove that copy and import the corrected JSON again. The inventory request uses API Key authorization with key `api_key`, value `{{petstoreApiKey}}`, and location `Header`; the collection variable defaults to `local-mock-key`. Check that an active Postman environment does not override `petstoreApiKey` with an empty value.
+
+Send requests individually after reviewing the case description, parameters, expected status, warnings, and authorization requirement. Do not run the entire collection as a batch. The mock implements only `GET /store/inventory`, `POST /store/order`, and `GET /store/order/{orderId}`; the other routes return 404 and are not validated by this mock. The Postman requests are manual aids, not evidence that those cases have passed.
+
+Mutating requests have a pre-request guard that rejects targets other than the loopback mock. Keep them mock-only; the optional order request creates in-memory state that disappears when the mock stops. The logout request is blocked pending review because the contract describes a session side effect. Do not add guessed IDs, credentials, or live test data just to make a request run.
+
+**Manual Postman rehearsal (2026-10-13):** `TC-GETINVENTORY-POS-200` returned the mock fixture `{"available":7,"pending":2,"sold":3}`. This confirms the manual request and API-key header against the loopback mock; it is separate from the guarded CLI result and is not public-service evidence.
+
+## 5. Present the live evidence
+
+The existing recorded live run passed `TC-GETINVENTORY-POS-200` against `https://petstore.swagger.io/v2`: expected and actual HTTP 200, one pass, and zero failures or skips. Show that retained result and HTML snapshot as historical evidence; do not send a new public request as part of this demo. Petstore is shared and its availability is not guaranteed.
 
 **Latest live verification (2026-10-11):** the guarded CLI run passed `TC-GETINVENTORY-POS-200` against the same target in 333 ms. The result records expected/actual HTTP 200, one pass, zero failures/skips, plan revision 2, and spec fingerprint `77d18c99ee7f556e8dbcaf5e80ed788e6cb1a182f37f34229e7b0d956bf4757d`. The JSON result is `/tmp/petstore-live-results.json`; the run audit is `/tmp/petstore-live-run.jsonl`.
 
@@ -91,25 +105,20 @@ This optional rehearsal covers `POST /store/order` only against the loopback moc
 
 Start the mock using step 1, then fetch the current contract and start guided review:
 
-```sh
-curl -fsSL https://petstore.swagger.io/v2/swagger.json -o /tmp/petstore-live-swagger.json
-npx tsx src/cli.ts guide \
-  --spec /tmp/petstore-live-swagger.json \
-  --objective "Validate order creation against the isolated Petstore mock" \
-  --out tests/generated/petstore-live-order.spec.ts \
-  --audit /tmp/petstore-order-guided.jsonl
+```powershell
+$specPath = Join-Path $env:TEMP 'petstore-live-swagger.json'
+$orderGuidedAudit = Join-Path $env:TEMP 'petstore-order-guided.jsonl'
+curl.exe -fsSL https://petstore.swagger.io/v2/swagger.json -o $specPath
+npx.cmd tsx src/cli.ts guide --spec $specPath --objective "Validate order creation against the isolated Petstore mock" --out tests/generated/petstore-live-order.spec.ts --audit $orderGuidedAudit
 ```
 
 Select `TC-PLACEORDER-POS-200`, review the request and expected response, and type `APPROVE`. This approves only test generation; no API request is sent. Then run the approved test against loopback:
 
-```sh
-npx tsx src/cli.ts run \
-  --base-url http://127.0.0.1:4010/v2 \
-  --file tests/generated/petstore-live-order.spec.ts \
-  --include-mutating \
-  --results /tmp/petstore-order-mock-results.json \
-  --html-report /tmp/petstore-order-mock-report.html \
-  --audit /tmp/petstore-order-mock-run.jsonl
+```powershell
+$orderResults = Join-Path $env:TEMP 'petstore-order-mock-results.json'
+$orderReport = Join-Path $env:TEMP 'petstore-order-mock-report.html'
+$orderAudit = Join-Path $env:TEMP 'petstore-order-mock-run.jsonl'
+npx.cmd tsx src/cli.ts run --base-url http://127.0.0.1:4010/v2 --file tests/generated/petstore-live-order.spec.ts --include-mutating --results $orderResults --html-report $orderReport --audit $orderAudit
 ```
 
 At the prompts, confirm the authorized non-production target, execution, and the separate `APPROVE MUTATING CALLS` gate. Because `POST /store/order` declares no authentication, no API key is needed for this mock case. Expected result: `TC-PLACEORDER-POS-200` passes with HTTP 200. To verify the created in-memory record, request `http://127.0.0.1:4010/v2/store/order/1`; stopping and restarting the mock removes it. This rehearsal demonstrates the guarded workflow and mock behavior only; it does not authorize or verify a live mutation.
