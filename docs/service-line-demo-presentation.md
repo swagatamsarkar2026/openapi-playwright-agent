@@ -1,148 +1,164 @@
 # OpenAPI Playwright Agent
-## Service-Line Demo
+## Service-Line Demo · Spec → Case → Code → Report
 
-**Format:** End-to-end walkthrough with an optional mock-only write segment<br>
-**Purpose:** Show how an API contract becomes tests the team can review, run, and trust
+**Format:** 15-minute core walkthrough; optional 5-minute loopback-only write<br>
+**Purpose:** Show the complete path from Swagger/OpenAPI input to reviewed cases, approved Playwright TypeScript, guarded execution, and useful reports.
 
----
+The default demo is deterministic. Do not enable OpenAI drafting or send private specifications, objectives, credentials, or customer data to an external model. No public Petstore mutation is permitted. The optional order write is limited to the loopback mock.
 
-## 1. The Outcome
-
-Turn an existing Swagger/OpenAPI contract into tests the team can review, run, and trust.
-
-- Reduce repetitive test setup with contract-derived test scaffolding.
-- Connect test cases and results to evidence and stable IDs.
-- Keep reviewers in control of selection, target, and execution.
-- Reuse the workflow across supported Swagger and OpenAPI contracts.
-
-**Say:** “The goal is less manual setup, clearer review, and results that can be traced back to the contract.”
+## Journey
 
 ```text
-API contract -> reviewable tests -> controlled runs -> useful results
+local spec → analyzed plan → manual/automated case proposals → human review
+           → approved TypeScript → guarded run → HTML + JSON + readable summary
 ```
 
-## 2. The End-to-End Flow
+The CLI accepts a **local JSON or YAML path** using `--spec`; it does not fetch a URL itself. Download the contract first. `analyze` writes a Markdown plan. `guide` reviews cases, binds approval to a plan revision, and generates TypeScript only after explicit `APPROVE`. Guided review does not call the API under test.
+
+## Inputs
+
+### Petstore · Swagger 2.0
+
+From the repository root in PowerShell:
+
+```powershell
+$specPath = Join-Path $env:TEMP 'petstore-demo-swagger.json'
+$planPath = Join-Path $env:TEMP 'petstore-demo-plan.md'
+curl.exe -fsSL https://petstore.swagger.io/v2/swagger.json -o $specPath
+npx.cmd tsx src/cli.ts analyze --spec $specPath --out $planPath
+Invoke-Item $planPath
+```
+
+Fetching the specification is input acquisition, not an API-under-test request. The 2026-10-11 snapshot analyzed 20 operations and 43 cases: 9 automated candidates and 34 manual-review cases. Fresh specs may change these counts.
+
+### Frankfurter · OpenAPI 3.1
+
+This second input demonstrates the same local-file intake with a different contract version:
+
+```powershell
+$frankfurterSpec = Join-Path $env:TEMP 'frankfurter-openapi.json'
+$frankfurterPlan = Join-Path $env:TEMP 'frankfurter-plan.md'
+curl.exe -fsSL https://api.frankfurter.dev/v1/openapi.json -o $frankfurterSpec
+npx.cmd tsx src/cli.ts analyze --spec $frankfurterSpec --out $frankfurterPlan
+Invoke-Item $frankfurterPlan
+```
+
+The 2026-10-11 analysis recorded 5 operations and 9 cases. The selected `GET /latest` case is read-only and requires no authentication.
+
+## Case Design and Review
+
+The Markdown plan is where reviewers inspect the proposed test cases and detailed steps. Each case includes a stable ID, classification, automation status, input provenance, preconditions, numbered steps, expected outcomes, evidence pointers, and review notes. Open `$planPath` in the editor and find the `## METHOD /path` operation, then its `### TC-...` case.
+
+Automated candidates are not approved tests yet. Documented 4xx responses become **manual-review proposals** when the contract does not establish a safe error-triggering input. For example, `TC-PLACEORDER-NEG-400` records the documented HTTP 400 expectation, but the reviewer must define a safe invalid-order scenario; the tool does not guess a payload. Manual-review cases are not converted into runnable Playwright assertions by approval alone.
+
+Optional OpenAI case drafts are a separate proposal path, not part of the deterministic demo. They require `guide --ai-draft-cases` and the explicit `SEND TO OPENAI` confirmation. Drafts are written separately for manual review; model-authored steps and code are never executed. No live OpenAI request has been made.
+
+Inspect this representative automated case in the plan:
+
+| Field | Example |
+|---|---|
+| ID / operation | `TC-GETINVENTORY-POS-200` · `GET /store/inventory` |
+| Expected status | HTTP 200, documented by the spec |
+| Authentication | Declared API key, read from an environment variable |
+| Steps | Build URL; set headers/auth; send GET; assert status; check content type; validate response schema |
+| Evidence | Spec fingerprint and `/paths/~1store~1inventory/get/responses/200` JSON Pointer |
+
+## Approve and Generate
+
+Start guided review against the same `$specPath` used to create the plan:
+
+```powershell
+$guidedAudit = Join-Path $env:TEMP 'petstore-demo-guided.jsonl'
+npx.cmd tsx src/cli.ts guide --spec $specPath --objective "Validate the inventory read" --out tests/generated/petstore-demo-inventory.spec.ts --audit $guidedAudit
+```
+
+At case selection, choose only `TC-GETINVENTORY-POS-200`. Inspect its evidence, sample, auth requirement, steps, and warnings, then type `APPROVE`. `edit` returns to selection; `cancel` creates no generated test. Approval is bound to the selected plan revision. This is the conversion step: the CLI emits Playwright TypeScript from the approved deterministic candidate; it is not a manual translation exercise.
+
+The generated artifact is:
 
 ```text
-Contract -> analysis and evidence -> case review and approval
-         -> Playwright generation -> guarded execution -> result summary
+tests/generated/petstore-demo-inventory.spec.ts
 ```
 
-The user supplies a contract and objective, reviews the proposed cases, approves a plan revision, then separately approves the authorized target and execution. Mutating calls need an additional approval.
+Generated source uses `test()` and named `test.step()` calls for URL construction, headers/auth, request, exact status, content type, and response schema. It carries the stable case ID, request serialization, configured environment-based credentials, safe diagnostics, and integrity metadata binding the file to the approved plan. Generated files are local artifacts and are ignored by Git.
 
-## 3. What We Built
+## Review the TypeScript
 
-- **Intake:** Analyze Swagger 2.0 and OpenAPI 3.x inputs into stable operation and case inventories.
-- **Plan:** Show expected outcomes, sample provenance, and evidence pointers before generation.
-- **Approve:** Bind generated Playwright tests to the explicitly approved plan revision.
-- **Verify:** Gate target and execution, then report outcomes with stable IDs and redacted evidence.
+Open `tests/generated/petstore-demo-inventory.spec.ts` in VS Code and check:
 
-Exercised with Petstore (Swagger 2.0; 20 operations, 43 cases analyzed) and Frankfurter (OpenAPI 3.1; 5 operations, 9 cases analyzed).
+- The case ID, method, path, selected input values, and expected status match the plan.
+- Authentication is read from the expected environment variable; no secret is embedded.
+- Assertions match documented content type and supported response-schema constraints.
+- The generated plan metadata and execution approval checks remain intact.
+- Mutation and warning behavior is not weakened.
 
-## 4. From Contract to Cases
+If the generated file changes, regenerate and reapprove rather than bypassing the integrity check. Typecheck and test discovery are safe checks; they do not send API requests:
 
-Representative cases make the workflow concrete:
-
-| Case | Purpose | Recorded outcome |
-|---|---|---|
-| `TC-GETINVENTORY-POS-200` | Validate Petstore inventory | Passed against public Petstore and the loopback mock |
-| `TC-PLACEORDER-POS-200` | Validate order creation in an isolated mock | Passed; readback and restart cleanup verified |
-| `TC-GET-LATEST-POS-200` | Validate an OpenAPI 3.1 read | Passed against Frankfurter with response-schema validation |
-
-## 5. Execution Evidence
-
-| Target | Operation | Result |
-|---|---|---|
-| Public Petstore | `GET /store/inventory` | Guarded HTTP 200 pass |
-| Petstore loopback mock | `GET /store/inventory` | Guarded HTTP 200 pass |
-| Petstore loopback mock | `POST /store/order` | HTTP 200; readback 200; after mock restart, 404 |
-| Public Frankfurter | `GET /latest` | Guarded HTTP 200 and response-schema pass |
-
-Order creation and cleanup were tested only against the loopback mock.
-
-## 6. Start the Mock
-
-From the repository root:
-
-```sh
-npm run mock:petstore
+```powershell
+npm.cmd run typecheck
+npx.cmd playwright test --list tests/generated/petstore-demo-inventory.spec.ts --reporter=list
 ```
 
-The service listens on `http://127.0.0.1:4010/v2`. It serves fixture-backed inventory and stores test orders in memory.
+## Run and Report
 
-## 7. Review Before Generation
+Start the local Petstore mock in Terminal A and leave it running:
 
-Fetch the current Petstore contract and guide the inventory review:
-
-```sh
-curl -fsSL https://petstore.swagger.io/v2/swagger.json -o /tmp/petstore-demo-swagger.json
-npx tsx src/cli.ts guide \
-  --spec /tmp/petstore-demo-swagger.json \
-  --objective "Validate the Petstore inventory read operation" \
-  --out tests/generated/petstore-demo-inventory.spec.ts \
-  --audit /tmp/petstore-demo-guided.jsonl
+```powershell
+npm.cmd run mock:petstore
 ```
 
-Select `TC-GETINVENTORY-POS-200`, review the evidence and expected response, and enter `APPROVE`. Guided review does not call the API under test.
+It listens only on `http://127.0.0.1:4010/v2`. In Terminal B, configure the fixture key and run only the approved artifact against that loopback target:
 
-## 8. Run Against the Public Read API
+```powershell
+$env:API_KEY_API_KEY = 'local-mock-key'
+$inventoryResults = Join-Path $env:TEMP 'petstore-demo-results.json'
+$inventoryReport = Join-Path $env:TEMP 'petstore-demo-report.html'
+$inventoryAudit = Join-Path $env:TEMP 'petstore-demo-run.jsonl'
+npx.cmd tsx src/cli.ts run --base-url http://127.0.0.1:4010/v2 --file tests/generated/petstore-demo-inventory.spec.ts --results $inventoryResults --html-report $inventoryReport --audit $inventoryAudit
+```
 
-The recorded Petstore inventory result is a guarded HTTP 200 pass. Use the existing evidence by default; a fresh public request is optional and requires target authorization and the runner's confirmations.
+At the prompts confirm `AUTHORIZED NON-PRODUCTION`, `AUTHENTICATION CONFIGURED`, and `RUN APPROVED`. Expected result: one pass, HTTP 200, zero failures/skips, and no mutations. Remove the local variable afterward:
 
-## 9. Run Against the Mock
+```powershell
+Remove-Item Env:API_KEY_API_KEY
+```
 
-Run the same approved case against `http://127.0.0.1:4010/v2`, then use `summarize` on its results file. This demonstrates repeatable validation without depending on public-service availability. Full commands and expected prompts are in the [Petstore walkthrough](./petstore-demo-walkthrough.md).
+Display the HTML report, then summarize the saved JSON without another request:
 
-## 10. Optional Mock Write
+```powershell
+Invoke-Item $inventoryReport
+npx.cmd tsx src/cli.ts summarize --results $inventoryResults
+```
 
-For `TC-PLACEORDER-POS-200`, approve generation, run only against the loopback mock with `--include-mutating`, and confirm the additional mutation prompt. Read back order `1`, restart the mock, and verify the record is gone. Never point this write at public Petstore.
+The report shows counts and per-case outcome, method/path, expected and actual HTTP status, duration, and redacted diagnostics. The summary adds stable case IDs and available step evidence. It describes recorded observations; it does not infer a root cause. Keep outputs under `$env:TEMP`; Playwright clears repository `test-results` when a run starts.
 
-## 11. Second API
+Previously recorded read-only outcomes are historical examples, not fresh results from this run: Petstore inventory passed against the public service and mock; Frankfurter `GET /latest` passed HTTP 200 with response-schema validation. Public services may be unavailable; continue with the mock instead of repeatedly retrying.
 
-Frankfurter's `GET /latest` shows the same workflow with an OpenAPI 3.1 contract and a public read-only operation. The recorded run passed HTTP 200 and response-schema validation. See the [Frankfurter runbook](./frankfurter-demo.md) for clean-setup commands.
+## Optional Mock-Only Write
 
-## 12. Trust and Control
+Only use this five-minute segment if the audience asks about state-changing tests. Re-run `guide` against the current `$specPath`, select and approve only `TC-PLACEORDER-POS-200`, then execute with the separate mutation opt-in:
 
-- Generated tests are tied to the exact plan revision the reviewer approved.
-- Target and required authentication are confirmed before requests are sent.
-- Mutating tests require explicit opt-in and a separate execution approval.
-- Stable case IDs and redacted reports make outcomes easier to review.
+```powershell
+$orderResults = Join-Path $env:TEMP 'petstore-order-results.json'
+$orderReport = Join-Path $env:TEMP 'petstore-order-report.html'
+npx.cmd tsx src/cli.ts run --base-url http://127.0.0.1:4010/v2 --file tests/generated/petstore-demo-order.spec.ts --include-mutating --results $orderResults --html-report $orderReport
+```
 
-**Benefit:** Automate repeatable checks while keeping people in control of what runs and where.
+Confirm `AUTHORIZED NON-PRODUCTION`, `RUN APPROVED`, and `APPROVE MUTATING CALLS`. Read order `1` and confirm HTTP 200. Stop and restart the mock, then read again and confirm HTTP 404. This verifies in-memory cleanup. **Never target public Petstore with this write.**
 
-## 13. Optional AI-Assisted Drafting
+## Presenter Close
 
-OpenAI can suggest additional scenarios from bounded contract context while deterministic analysis remains the source of executable tests.
+The workflow demonstrates controlled automation: contract evidence remains visible, reviewers choose what is generated, targets and execution are separately approved, and the report ties observed results back to a case and step.
 
-- The user must explicitly consent by entering `SEND TO OPENAI`.
-- The request uses minimized, redacted operation summaries, documented statuses, evidence pointers, and the objective; it excludes the raw specification, request samples, API-under-test credentials, and target URL.
-- Drafts are separate manual-review proposals. Model-authored steps and code are never executed.
-- A draft can map to an exact eligible read-only case. Promotion reuses deterministic inputs and assertions, then still requires selection and approval of the new plan revision.
-- Provider behavior and safety are covered by mocked tests; no live OpenAI request has been made.
-- Do not send private specifications or objectives without the applicable data-policy review.
+Ask the team which authorized API and representative workflow they would pilot, what evidence they need to trust a generated check, and what acceptance criteria a follow-up should meet. Do not imply production readiness or service-line acceptance. A colleague's independent clean-setup walkthrough remains the Phase 6 gate; broader AGT-10 quality work is separate.
 
-## 14. Team Discussion
+## Project References
 
-- Which API and representative workflow should we evaluate first?
-- Which checks and outcomes matter most to the team?
-- What evidence do reviewers need to trust a generated test?
-- Where could AI-assisted scenario drafting help within the team's data policies?
-
-## 15. Explore the Project
-
-Use the final slide in the [HTML presentation](./service-line-demo-presentation.html) to open the project guides during discussion:
-
-- [README](../README.md): product overview and CLI usage
-- [Backlog](../BACKLOG.md): roadmap, status, and acceptance criteria
-- [Project handoff](../HANDOFF.md): project context and collaboration notes
-- [Agent contract](./AGENT-CONTRACT.md): workflow, evidence, and approvals
-- [Service-line demo instructions](./service-line-demo-instructions.md): presenter script and troubleshooting
-- [Petstore walkthrough](./petstore-demo-walkthrough.md): mock, public read, and local order lifecycle
-- [Frankfurter runbook](./frankfurter-demo.md): OpenAPI 3.1 read-only workflow
-- [Petstore live plan](./petstore-live-plan-2026-10-10.md): operation and case inventory
-- [Example test plan](../examples/petstore/TEST-PLAN-EXAMPLE.md): generated case format
-- [Colleague handoff](./COLLEAGUE-HANDOFF.md): setup and acceptance checklist
-
-## Presenter Checklist
-
-Run the setup and project checks before the session. Keep outputs under `/tmp`, stop the mock afterward, and use recorded public results if either public service is unavailable. Never send a Petstore mutation to the public service.
+- [HTML presentation](./service-line-demo-presentation.html)
+- [Demo instructions and troubleshooting](./service-line-demo-instructions.md)
+- [Petstore walkthrough](./petstore-demo-walkthrough.md)
+- [Frankfurter runbook](./frankfurter-demo.md)
+- [Example test plan](../examples/petstore/TEST-PLAN-EXAMPLE.md)
+- [README](../README.md)
+- [Backlog](../BACKLOG.md)
+- [Colleague handoff](./COLLEAGUE-HANDOFF.md)

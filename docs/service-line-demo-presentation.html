@@ -212,6 +212,12 @@
     .resource-link strong { display: block; font-size: .83rem; }
     .resource-link span { color: var(--muted); font-size: .7rem; }
     .case-table td { font-size: .72rem; }
+    .case-steps { margin: .25rem 0; padding-left: 1.25rem; color: var(--muted); font-size: .78rem; }
+    .case-steps li { margin: .25rem 0; }
+    .artifact-path { display: block; border-left: 3px solid var(--coral); background: #fff; padding: 9px 12px; color: var(--ink); font: .75rem var(--mono); overflow-wrap: anywhere; }
+    .code-review-list { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 20px; margin: .6rem 0; padding: 0; list-style: none; }
+    .code-review-list li { border-top: 1px solid var(--line); padding: 7px 0; color: var(--muted); font-size: .82rem; }
+    .code-review-list strong { color: var(--ink); }
     .bottombar { height: 54px; }
     .controls { display: flex; align-items: center; gap: 8px; }
     .controls button { border: 1px solid #77827b; background: #f8faf5; padding: 7px 10px; color: var(--ink); cursor: pointer; font-size: .78rem; }
@@ -265,6 +271,9 @@
       .source-card p { font-size: .72rem; }
       .source-card code { font-size: .58rem; }
       .case-table td { font-size: .58rem; }
+      .case-steps { font-size: .7rem; }
+      .code-review-list { grid-template-columns: 1fr; gap: 0; }
+      .code-review-list li { padding: 5px 0; font-size: .74rem; }
       .status-table { font-size: .73rem; }
       .status-table th, .status-table td { padding: 6px; }
       .status-table { table-layout: fixed; font-size: .62rem; }
@@ -407,161 +416,216 @@
     </section>
 
     <section class="slide" aria-labelledby="slide-title-5" data-notes="These three stable IDs make the end-to-end story concrete: inventory was run against live and mock Petstore; order creation/readback/cleanup was mock-only; Frankfurter demonstrates a second contract format and public read. Keep candidate counts distinct from executed outcomes.">
-      <div class="kicker">04 · Generated case review</div>
-      <h2 id="slide-title-5">Contract facts become <span class="accent">reviewable test cases.</span></h2>
-      <table class="status-table case-table">
-        <thead><tr><th>Case</th><th>Purpose</th><th>Verified outcome</th></tr></thead>
-        <tbody>
-          <tr><td><code>TC-GETINVENTORY-POS-200</code></td><td>Validate the inventory read response</td><td>Passed against public Petstore and loopback mock.</td></tr>
-          <tr><td><code>TC-PLACEORDER-POS-200</code></td><td>Validate order creation in an isolated mock</td><td>Passed with readback and restart cleanup verified.</td></tr>
-          <tr><td><code>TC-GET-LATEST-POS-200</code></td><td>Validate an OpenAPI 3.1 read operation</td><td>Passed against Frankfurter with response-schema validation.</td></tr>
-        </tbody>
-      </table>
-      <p class="notes"><strong>Traceability:</strong> each case has a stable ID and contract evidence; selected cases are approved before generation.</p>
+      <div class="kicker">04 · Choose an input</div>
+      <h2 id="slide-title-5">Two contracts. <span class="accent">One review workflow.</span></h2>
+      <div class="source-grid">
+        <article class="source-card"><h3>Petstore · Swagger 2.0</h3><p>Download the public contract to a local file, then analyze it. Use its inventory read for the core mock demo.</p><code>petstore.swagger.io/v2/swagger.json</code></article>
+        <article class="source-card"><h3>Frankfurter · OpenAPI 3.1</h3><p>Download a second contract to a different local file. Use <code>GET /latest</code> as a read-only format comparison.</p><code>api.frankfurter.dev/v1/openapi.json</code></article>
+      </div>
+      <p class="callout"><strong>Input boundary</strong>The CLI takes a local JSON or YAML contract path with <code>--spec</code>; download or obtain the contract first. Analyzing a spec is not an API-under-test request.</p>
       <span class="slide-no">05 / 15</span>
     </section>
 
-    <section class="slide" aria-labelledby="slide-title-6" data-notes="Separate each environment explicitly. Petstore inventory passed live and mock; the mock-only order lifecycle proved readback and restart cleanup; Frankfurter latest passed against the public API with schema validation.">
-      <div class="kicker">05 · Execution evidence</div>
-      <h2 id="slide-title-6">What we have <span class="accent">actually verified.</span></h2>
-      <table class="status-table">
-        <thead><tr><th>Target</th><th>Case</th><th>Observed result</th></tr></thead>
-        <tbody>
-          <tr><td>Petstore public API</td><td><code>GET /store/inventory</code></td><td><span class="pill">PASS · HTTP 200</span></td></tr>
-          <tr><td>Petstore loopback mock</td><td><code>GET /store/inventory</code></td><td><span class="pill">PASS · HTTP 200</span></td></tr>
-          <tr><td>Petstore loopback mock</td><td><code>POST /store/order</code></td><td><span class="pill">PASS · readback 200 · restart 404</span></td></tr>
-          <tr><td>Frankfurter public API</td><td><code>GET /latest</code></td><td><span class="pill">PASS · schema asserted</span></td></tr>
-        </tbody>
-      </table>
-      <p class="notes"><strong>Value:</strong> combine real-service confidence with repeatable local validation and traceable results.</p>
-      <span class="slide-no">06 / 15</span>
-    </section>
-
-    <section class="slide" aria-labelledby="slide-title-7" data-notes="The live Petstore contract currently analyzed into 20 operations and 43 cases. The guide prints a lot of candidates; select only the inventory ID. Reviewing and generating does not send a request to the Petstore API operation.">
-      <div class="kicker">06 · Live Petstore read</div>
-      <h2 id="slide-title-7">Review one case before running it.</h2>
+    <section class="slide" aria-labelledby="slide-title-6" data-notes="Run these commands from the repository root. curl.exe downloads only the Swagger document. Analyze writes a local Markdown plan; it does not call the inventory endpoint.">
+      <div class="kicker">05 · Input 1 · Petstore</div>
+      <h2 id="slide-title-6">Fetch the spec, <span class="accent">then analyze it.</span></h2>
       <div class="split">
         <div>
-          <p>Fetch the current contract, then select only <code>TC-GETINVENTORY-POS-200</code> and approve generation.</p>
-          <div class="command"><button class="copy" type="button" aria-label="Copy Petstore review commands">Copy</button><pre><code>curl -fsSL https://petstore.swagger.io/v2/swagger.json -o /tmp/petstore-demo-swagger.json
-npx tsx src/cli.ts guide \
-  --spec /tmp/petstore-demo-swagger.json \
-  --objective "Validate the Petstore inventory read operation" \
-  --out tests/generated/petstore-demo-inventory.spec.ts \
-  --audit /tmp/petstore-demo-guided.jsonl</code></pre></div>
-          <p class="subtle">Guide prompts: select the case ID, inspect evidence, type <code>APPROVE</code>. No API-under-test request yet.</p>
+          <p>PowerShell commands from the repository root:</p>
+          <div class="command"><button class="copy" type="button" aria-label="Copy Petstore input commands">Copy</button><pre><code>$specPath = Join-Path $env:TEMP 'petstore-demo-swagger.json'
+$planPath = Join-Path $env:TEMP 'petstore-demo-plan.md'
+curl.exe -fsSL https://petstore.swagger.io/v2/swagger.json -o $specPath
+npx.cmd tsx src/cli.ts analyze --spec $specPath --out $planPath
+Invoke-Item $planPath</code></pre></div>
         </div>
-        <aside class="callout"><strong>What to point out</strong>Expected status, auth scheme, evidence pointer, and stable case ID. The generated artifact is tied to the approved plan revision.</aside>
+        <aside class="callout"><strong>What happens</strong><code>--spec</code> points to the downloaded file. <code>analyze</code> validates it and writes the reviewable case plan. No API operation is sent.</aside>
       </div>
-      <span class="slide-no">07 / 15</span>
+      <span class="slide-no">06</span>
     </section>
 
-    <section class="slide dark" aria-labelledby="slide-title-8" data-notes="This is the one live Petstore API operation. It is read-only. Only run it if the target is authorized and reachable. The special-key value is the documented public example. If corporate TLS interception requires a trusted CA, set NODE_EXTRA_CA_CERTS to that approved certificate; never disable certificate validation. Use recorded evidence as fallback rather than retrying repeatedly.">
-      <div class="kicker">07 · Guarded live GET</div>
-      <h2 id="slide-title-8">One public read. <span class="accent">No public writes.</span></h2>
-      <div class="command"><button class="copy" type="button" aria-label="Copy Petstore live command">Copy</button><pre><code>API_KEY_API_KEY=special-key npx tsx src/cli.ts run \
-  --base-url https://petstore.swagger.io/v2 \
-  --file tests/generated/petstore-demo-inventory.spec.ts \
-  --results /tmp/petstore-demo-live-results.json \
-  --html-report /tmp/petstore-demo-live-report.html \
-  --audit /tmp/petstore-demo-live-run.jsonl</code></pre></div>
+    <section class="slide" aria-labelledby="slide-title-7" data-notes="This second input is OpenAPI 3.1.2, rather than Swagger 2.0. The same local-file analyze command applies. Its selected GET /latest read was previously verified; do not imply a new API run here.">
+      <div class="kicker">06 · Input 2 · Frankfurter</div>
+      <h2 id="slide-title-7">Inject a second spec. <span class="accent">Keep the pipeline.</span></h2>
+      <div class="split">
+        <div>
+          <p>Use a different contract version and API:</p>
+          <div class="command"><button class="copy" type="button" aria-label="Copy Frankfurter input commands">Copy</button><pre><code>$frankfurterSpec = Join-Path $env:TEMP 'frankfurter-openapi.json'
+$frankfurterPlan = Join-Path $env:TEMP 'frankfurter-plan.md'
+curl.exe -fsSL https://api.frankfurter.dev/v1/openapi.json -o $frankfurterSpec
+npx.cmd tsx src/cli.ts analyze --spec $frankfurterSpec --out $frankfurterPlan
+Invoke-Item $frankfurterPlan</code></pre></div>
+        </div>
+        <aside class="callout"><strong>Same intake boundary</strong>The input changes; the local-file review process does not. Recorded analysis: 5 operations and 9 cases. <code>GET /latest</code> was previously verified.</aside>
+      </div>
+      <span class="slide-no">07</span>
+    </section>
+
+    <section class="slide dark" aria-labelledby="slide-title-8" data-notes="The dated Petstore analysis found 20 operations and 43 cases: 9 automated candidates and 34 requiring review. These are analysis counts, not executed coverage. The Markdown plan is the case-review artifact.">
+      <div class="kicker">07 · Analysis output</div>
+      <h2 id="slide-title-8">The plan is the <span class="accent">case inventory.</span></h2>
       <div class="metrics">
-        <div class="metric"><b>200</b><span>Observed HTTP status</span></div>
-        <div class="metric"><b>1</b><span>Selected read-only case</span></div>
-        <div class="metric"><b>0</b><span>Mutations sent to Petstore</span></div>
-        <div class="metric"><b>3</b><span>Separate run confirmations</span></div>
+        <div class="metric"><b>20</b><span>Operations analyzed</span></div>
+        <div class="metric"><b>43</b><span>Case proposals</span></div>
+        <div class="metric"><b>9</b><span>Automated candidates</span></div>
+        <div class="metric"><b>34</b><span>Manual review required</span></div>
       </div>
-      <p>Confirm target, configured authentication, and execution at the CLI prompts. If the service is unavailable, show the previously recorded pass.</p>
-      <span class="slide-no">08 / 15</span>
+      <div class="split">
+        <div><p>Open <code>$planPath</code>. Each case records stable ID, classification, input provenance, preconditions, numbered steps, expected outcome, evidence pointer, and review notes.</p><span class="artifact-path">%TEMP%\petstore-demo-plan.md</span></div>
+        <aside class="callout"><strong>Recorded analysis · 2026-10-11</strong>These are dated contract counts. A fresh download can change them. Analyzed candidates are not executed coverage.</aside>
+      </div>
+      <span class="slide-no">08</span>
     </section>
 
-    <section class="slide" aria-labelledby="slide-title-9" data-notes="The mock binds only to loopback and inventory is fixture-backed. Same approved inventory test and assertions; this demonstrates repeatability without depending on Petstore availability. The local key is only a mock value.">
-      <div class="kicker">08 · Repeat locally</div>
-      <h2 id="slide-title-9">Same case, <span class="accent">controlled target.</span></h2>
+    <section class="slide" aria-labelledby="slide-title-9" data-notes="Use the Petstore documented 400 as a manual-review example. The contract gives the status and description, but no safe invalid order sample; the reviewer must define it rather than the tool guessing.">
+      <div class="kicker">08 · Manual-case generation</div>
+      <h2 id="slide-title-9">Generate a review item. <span class="accent">Do not guess its trigger.</span></h2>
       <div class="split">
         <div>
-          <div class="command"><button class="copy" type="button" aria-label="Copy Petstore mock command">Copy</button><pre><code>npm run mock:petstore
-
-API_KEY_API_KEY=local-mock-key npx tsx src/cli.ts run \
-  --base-url http://127.0.0.1:4010/v2 \
-  --file tests/generated/petstore-demo-inventory.spec.ts \
-  --results /tmp/petstore-demo-mock-results.json \
-  --html-report /tmp/petstore-demo-mock-report.html \
-  --audit /tmp/petstore-demo-mock-run.jsonl</code></pre></div>
+          <span class="artifact-path">TC-PLACEORDER-NEG-400 · POST /store/order</span>
+          <ol class="case-steps">
+            <li>Define a safe input for the documented invalid-order scenario.</li>
+            <li>Use only an authorized isolated environment and test data.</li>
+            <li>Confirm HTTP 400 and review the documented error response.</li>
+          </ol>
+          <p>The analyzer writes this proposal, its expected outcome, and open questions into the Markdown plan as <b>manual review</b>.</p>
         </div>
-        <div>
-          <h3>Then summarize the record</h3>
-          <div class="command"><button class="copy" type="button" aria-label="Copy summarize command">Copy</button><pre><code>npx tsx src/cli.ts summarize \
-  --results /tmp/petstore-demo-mock-results.json</code></pre></div>
-          <p class="callout"><strong>Interpretation</strong>Pass/fail, status, and recorded assertion step. No inferred root cause.</p>
-        </div>
+        <aside class="callout"><strong>Optional AI proposal</strong><code>guide --ai-draft-cases</code> requires explicit <code>SEND TO OPENAI</code> consent. Drafts are separate review documents, never executable test code.</aside>
       </div>
-      <span class="slide-no">09 / 15</span>
+      <span class="slide-no">09</span>
     </section>
 
-    <section class="slide" aria-labelledby="slide-title-10" data-notes="Optional section. Keep it on loopback only. Re-guide and approve the order case from the current spec if using the live-contract-generated case. The CLI's separate mutation prompt is expected, not an inconvenience to bypass. Restart clears the in-memory order.">
-      <div class="kicker">09 · Optional mock-only write</div>
-      <h2 id="slide-title-10">Show the mutation gate <span class="accent">without public risk.</span></h2>
-      <div class="command"><button class="copy" type="button" aria-label="Copy local order command">Copy</button><pre><code>npx tsx src/cli.ts run \
-  --base-url http://127.0.0.1:4010/v2 \
-  --file tests/generated/petstore-demo-order.spec.ts \
-  --include-mutating \
-  --results /tmp/petstore-demo-order-results.json \
-  --html-report /tmp/petstore-demo-order-report.html \
-  --audit /tmp/petstore-demo-order-run.jsonl</code></pre></div>
+    <section class="slide" aria-labelledby="slide-title-10" data-notes="Point to the plan file and walk a single automated case top-to-bottom before generating code. The displayed ID, expected response, sample provenance, and evidence pointer should be traceable to the contract.">
+      <div class="kicker">09 · Detailed test steps</div>
+      <h2 id="slide-title-10">Inspect the case <span class="accent">before automation.</span></h2>
+      <div class="split">
+        <div>
+          <span class="artifact-path">TC-GETINVENTORY-POS-200 · GET /store/inventory</span>
+          <p class="subtle">Spec evidence: <code>/paths/~1store~1inventory/get/responses/200</code></p>
+          <ul class="code-review-list">
+            <li><strong>Expected:</strong> HTTP 200</li>
+            <li><strong>Auth:</strong> declared API key</li>
+            <li><strong>Risk:</strong> read-only</li>
+            <li><strong>Evidence:</strong> response 200 JSON Pointer</li>
+          </ul>
+        </div>
+        <div><h3>Numbered test steps</h3><ol class="case-steps"><li>Construct request URL and parameters.</li><li>Set headers and environment-based auth.</li><li>Send the GET request.</li><li>Assert exact documented status.</li><li>Check response content type.</li><li>Validate supported response-schema constraints.</li></ol><p class="callout"><strong>Reviewer question</strong>Are the input, auth, and checks appropriate for this environment?</p></div>
+      </div>
+      <span class="slide-no">10</span>
+    </section>
+
+    <section class="slide dark" aria-labelledby="slide-title-11" data-notes="The guide presents all candidates with inputs, evidence, steps, and review warnings. Select only the inventory case. Approval is revision-bound. Guide generation does not send an API-under-test request.">
+      <div class="kicker">10 · Review and approve</div>
+      <h2 id="slide-title-11">The reviewer chooses <span class="accent">what becomes code.</span></h2>
+      <div class="command"><button class="copy" type="button" aria-label="Copy guided review command">Copy</button><pre><code>$guidedAudit = Join-Path $env:TEMP 'petstore-demo-guided.jsonl'
+npx.cmd tsx src/cli.ts guide --spec $specPath --objective "Validate the inventory read" --out tests/generated/petstore-demo-inventory.spec.ts --audit $guidedAudit</code></pre></div>
+      <div class="build-grid">
+        <article class="build-item"><b>01 / SELECT</b><strong>Stable case ID</strong><span>Choose <code>TC-GETINVENTORY-POS-200</code>.</span></article>
+        <article class="build-item"><b>02 / INSPECT</b><strong>Evidence and steps</strong><span>Review inputs, status, auth, pointers, and warnings.</span></article>
+        <article class="build-item"><b>03 / APPROVE</b><strong>Plan revision</strong><span>Type <code>APPROVE</code>; edit or cancel instead if needed.</span></article>
+        <article class="build-item"><b>04 / GENERATE</b><strong>No API call</strong><span>Writes only the approved plan artifact.</span></article>
+      </div>
+      <span class="slide-no">11</span>
+    </section>
+
+    <section class="slide" aria-labelledby="slide-title-12" data-notes="The guided workflow emits TypeScript from approved deterministic cases. This is a simplified excerpt; the generated file also includes approval metadata, request serialization, diagnostics, and schema assertions.">
+      <div class="kicker">11 · Convert case to code</div>
+      <h2 id="slide-title-12">Approved case → <span class="accent">Playwright TypeScript.</span></h2>
+      <p>The guided workflow writes <code>tests/generated/petstore-demo-inventory.spec.ts</code>; the reviewer does not hand-translate the case. Structural excerpt from the generated case/step loop:</p>
+      <div class="command"><pre><code>for (const testCase of cases) {
+  test(`${testCase.id}: ${testCase.title}`, async ({ request }, testInfo) =&gt; {
+    let response: APIResponse | undefined;
+    for (const [index, step] of testCase.steps.entries()) {
+      await test.step(`${index + 1}. ${step.action}`, async () =&gt; {
+        if (step.kind === "assert-status") expect(response!.status()).toBe(testCase.expectedStatus);
+      });
+    }
+  });
+}</code></pre></div>
+      <p class="callout"><strong>What carries through</strong>Stable ID, numbered steps, exact documented status, schema checks, and approved plan binding.</p>
+      <span class="slide-no">12</span>
+    </section>
+
+    <section class="slide dark" aria-labelledby="slide-title-13" data-notes="Open the generated file in the editor. Review the case identity, HTTP method/path, samples, auth environment variable, assertions, mutation skip, and approval metadata. If content changes, regenerate and approve again; do not bypass integrity checks.">
+      <div class="kicker">12 · Review generated code</div>
+      <h2 id="slide-title-13">Inspect the artifact <span class="accent">before running it.</span></h2>
+      <span class="artifact-path">tests/generated/petstore-demo-inventory.spec.ts</span>
+      <ul class="code-review-list">
+        <li><strong>Identity:</strong> expected case ID and operation</li>
+        <li><strong>Request:</strong> method, path, inputs, auth source</li>
+        <li><strong>Assertions:</strong> exact status, media type, schema</li>
+        <li><strong>Safety:</strong> warnings, mutation default, plan binding</li>
+      </ul>
+      <div class="command"><button class="copy" type="button" aria-label="Copy code review checks">Copy</button><pre><code>Get-Content tests/generated/petstore-demo-inventory.spec.ts
+npm.cmd run typecheck
+npx.cmd playwright test --list tests/generated/petstore-demo-inventory.spec.ts --reporter=list</code></pre></div>
+      <p class="subtle">Typecheck and <code>--list</code> validate source and discovery; neither sends the API request. Do not edit an approved artifact in place.</p>
+      <span class="slide-no">13</span>
+    </section>
+
+    <section class="slide" aria-labelledby="slide-title-14" data-notes="The runner checks the generated artifact against approved plan metadata and requires separate target, authentication, and execution confirmations. This core path uses only the loopback mock.">
+      <div class="kicker">13 · Guarded execution</div>
+      <h2 id="slide-title-14">Run only the <span class="accent">approved artifact.</span></h2>
+      <p>Terminal A: start the loopback service and leave it running: <code>npm.cmd run mock:petstore</code>. Use Terminal B for the run command.</p>
+      <div class="command"><button class="copy" type="button" aria-label="Copy mock execution command">Copy</button><pre><code>$env:API_KEY_API_KEY = 'local-mock-key'
+$inventoryResults = Join-Path $env:TEMP 'petstore-demo-results.json'
+$inventoryReport = Join-Path $env:TEMP 'petstore-demo-report.html'
+$inventoryAudit = Join-Path $env:TEMP 'petstore-demo-run.jsonl'
+npx.cmd tsx src/cli.ts run --base-url http://127.0.0.1:4010/v2 --file tests/generated/petstore-demo-inventory.spec.ts --results $inventoryResults --html-report $inventoryReport --audit $inventoryAudit</code></pre></div>
+      <div class="metrics">
+        <div class="metric"><b>1</b><span>Confirm target is authorized and non-production</span></div>
+        <div class="metric"><b>2</b><span>Confirm mock authentication is configured</span></div>
+        <div class="metric"><b>3</b><span>Approve this execution</span></div>
+        <div class="metric"><b>0</b><span>Public API mutations</span></div>
+      </div>
+      <p>Enter <code>AUTHORIZED NON-PRODUCTION</code>, <code>AUTHENTICATION CONFIGURED</code>, and <code>RUN APPROVED</code> when prompted. The expected mock outcome is one HTTP 200 pass.</p>
+      <span class="slide-no">14</span>
+    </section>
+
+    <section class="slide" aria-labelledby="slide-title-15" data-notes="Show the HTML report and then the CLI summary from the JSON output. Reports show recorded outcomes, expected/actual status, stable ID, duration, and safe diagnostics. They do not infer a root cause.">
+      <div class="kicker">14 · Reporting</div>
+      <h2 id="slide-title-15">Run evidence in <span class="accent">three useful forms.</span></h2>
+      <div class="source-grid">
+        <article class="source-card"><h3>HTML report</h3><p>Counts and rows by case ID, outcome, method/path, expected/actual HTTP, duration, and redacted diagnostic.</p><code>$inventoryReport</code></article>
+        <article class="source-card"><h3>JSON results</h3><p>Machine-readable case outcomes plus available numbered-step evidence.</p><code>$inventoryResults</code></article>
+        <article class="source-card"><h3>Audit log</h3><p>Plan, approval, target, and run events without raw response bodies or credential values.</p><code>$inventoryAudit</code></article>
+        <article class="source-card"><h3>Readable summary</h3><p>Summarize the saved JSON without sending another request.</p><code>npx.cmd tsx src/cli.ts summarize --results $inventoryResults</code></article>
+      </div>
+      <div class="split"><span class="artifact-path">Expected demo shape: 1 case · 1 passed · 0 failed · 0 skipped</span><p class="callout"><strong>Interpret carefully</strong>Compare recorded HTTP status and assertion step. A summary reports observations; it does not invent a cause.</p></div>
+      <span class="slide-no">15</span>
+    </section>
+
+    <section class="slide dark" aria-labelledby="slide-title-16" data-notes="Optional five-minute segment only. Run the order write against the loopback mock, never public Petstore. The test must be freshly guided and approved; the mutation flag and extra confirmation are deliberate controls.">
+      <div class="kicker">15 · Optional · local write</div>
+      <h2 id="slide-title-16">Show the separate <span class="accent">mutation gate.</span></h2>
+      <div class="command"><button class="copy" type="button" aria-label="Copy mock order command">Copy</button><pre><code>$orderResults = Join-Path $env:TEMP 'petstore-order-results.json'
+$orderReport = Join-Path $env:TEMP 'petstore-order-report.html'
+npx.cmd tsx src/cli.ts run --base-url http://127.0.0.1:4010/v2 --file tests/generated/petstore-demo-order.spec.ts --include-mutating --results $orderResults --html-report $orderReport</code></pre></div>
       <ol>
-        <li>Confirm loopback target, run approval, and <code>APPROVE MUTATING CALLS</code>.</li>
-        <li>Show <code>POST /store/order</code> passes with HTTP 200; read back order 1 with HTTP 200.</li>
-        <li>Stop and restart mock. Readback returns HTTP 404; state was process-local.</li>
+        <li>Review and approve <code>TC-PLACEORDER-POS-200</code>; include <code>--include-mutating</code>.</li>
+        <li>Confirm target, execution, and <code>APPROVE MUTATING CALLS</code>.</li>
+        <li>Read order 1 (HTTP 200); restart mock; read again (HTTP 404).</li>
       </ol>
-      <p class="callout"><strong>Never point this write at public Petstore.</strong></p>
-      <span class="slide-no">10 / 15</span>
+      <p class="callout"><strong>Loopback only.</strong> Never point this write at public Petstore.</p>
+      <span class="slide-no">16</span>
     </section>
 
-    <section class="slide dark" aria-labelledby="slide-title-11" data-notes="Frankfurter is an additional public, read-only example. It was previously run through the guarded CLI and passed schema validation. Do not claim a fresh run unless you run it in front of the audience. Re-run only if authorized and network is available; full commands are in docs/frankfurter-demo.md.">
-      <div class="kicker">10 · Second contract</div>
-      <h2 id="slide-title-11">Another format. <span class="accent">Same workflow.</span></h2>
-      <p class="lede">Frankfurter OpenAPI 3.1 · `GET /latest` · no authentication</p>
-      <div class="metrics">
-        <div class="metric"><b>5</b><span>Documented operations analyzed</span></div>
-        <div class="metric"><b>9</b><span>Derived cases</span></div>
-        <div class="metric"><b>200</b><span>Observed status</span></div>
-        <div class="metric"><b>PASS</b><span>Response-schema assertion</span></div>
+    <section class="slide" aria-labelledby="slide-title-17" data-notes="Frankfurter is a second contract input, not a fresh run in this presentation. Its OpenAPI 3.1 /latest read passed a guarded run on 2026-10-11 with HTTP 200 and response-schema validation. State that this is recorded historical evidence.">
+      <div class="kicker">16 · Second contract · recorded result</div>
+      <h2 id="slide-title-17">Same journey. <span class="accent">Another API.</span></h2>
+      <div class="value-path">
+        <div class="value-stop"><small>Input</small><strong>OpenAPI 3.1</strong><span>Frankfurter contract file</span></div>
+        <div class="value-arrow" aria-hidden="true">→</div>
+        <div class="value-stop"><small>Case</small><strong>GET /latest</strong><span>TC-GET-LATEST-POS-200</span></div>
+        <div class="value-arrow" aria-hidden="true">→</div>
+        <div class="value-stop"><small>Recorded</small><strong>HTTP 200</strong><span>Response-schema check passed</span></div>
       </div>
-      <p>Previously verified on the public read-only endpoint. Show the recorded result by default; follow the Frankfurter runbook for an authorized fresh run.</p>
-      <span class="slide-no">11 / 15</span>
+      <p class="callout"><strong>Historical result · 2026-10-11</strong>One public read-only operation passed; dynamic rate values were not asserted. Use the Frankfurter runbook for an authorized fresh run.</p>
+      <span class="slide-no">17</span>
     </section>
 
-    <section class="slide" aria-labelledby="slide-title-12" data-notes="Explain controls as an enabler for safe, repeatable use: generated files are tied to approved plans, targets are confirmed before calls, mutations need an additional approval, and reports retain redacted evidence.">
-      <div class="kicker">11 · Trust and control</div>
-      <h2 id="slide-title-12">Make execution <span class="accent">clear and controlled.</span></h2>
-      <div class="source-grid">
-        <article class="source-card"><h3>Reviewed generation</h3><p>Generated tests are tied to the exact plan revision the reviewer approved.</p></article>
-        <article class="source-card"><h3>Authorized targets</h3><p>Target and authentication are confirmed before an API request is sent.</p></article>
-        <article class="source-card"><h3>Mutation gates</h3><p>State-changing tests require explicit opt-in and a separate run approval.</p></article>
-        <article class="source-card"><h3>Traceable results</h3><p>Stable case IDs and redacted reports make outcomes easier to review.</p></article>
-      </div>
-      <p class="callout"><strong>Benefit</strong>Teams can automate repeatable checks while keeping people in control of what runs and where.</p>
-      <span class="slide-no">12 / 15</span>
-    </section>
-
-    <section class="slide dark" aria-labelledby="slide-title-13" data-notes="Describe the LLM as optional drafting assistance. It receives minimized, redacted contract-derived context only after explicit consent. Drafts are proposals, not executable tests. The provider path has mocked tests; no live OpenAI request has been made. Do not send private specifications or objectives without the required data-policy approval.">
-      <div class="kicker">12 · Optional AI-assisted drafting</div>
-      <h2 id="slide-title-13">Use an LLM to widen review, <span class="accent">not own execution.</span></h2>
-      <p class="lede">OpenAI can suggest additional scenarios from bounded contract context while the deterministic workflow remains the source of executable tests.</p>
-      <div class="source-grid">
-        <article class="source-card"><h3>Bounded context</h3><p>With explicit consent, send the objective and minimized, redacted operation summaries, documented statuses, and evidence pointers.</p></article>
-        <article class="source-card"><h3>Proposal output</h3><p>Drafts are written separately for manual review. Model-authored steps and code are never executed.</p></article>
-        <article class="source-card"><h3>Grounded promotion</h3><p>A draft may map to an exact eligible read-only case; the reviewer still selects and approves the new plan revision.</p></article>
-        <article class="source-card"><h3>Current verification</h3><p>Provider behavior and safety are covered by mocked tests. No live OpenAI request has been made.</p></article>
-      </div>
-      <p class="subtle">Private specifications and objectives require an applicable data-policy review before external inference.</p>
-      <span class="slide-no">13 / 15</span>
-    </section>
-
-    <section class="slide" aria-labelledby="slide-title-14" data-notes="Close by connecting the workflow to the team's own API and delivery process. Invite a concrete next step: choose one authorized pilot API, a representative read path, and the evidence reviewers need.">
-      <div class="kicker">13 · Team discussion</div>
-      <h2 id="slide-title-14">Where could this workflow <span class="accent">help your team?</span></h2>
+    <section class="slide" aria-labelledby="slide-title-18" data-notes="Close by connecting the workflow to the team's own API and delivery process. Invite a concrete next step: choose one authorized pilot API, a representative read path, and the evidence reviewers need.">
+      <div class="kicker">17 · Team discussion</div>
+      <h2 id="slide-title-18">Where could this workflow <span class="accent">help your team?</span></h2>
       <div class="qa">
         <article><h3>Which API?</h3><p>Choose an authorized service and a representative workflow.</p></article>
         <article><h3>Which checks?</h3><p>Identify the read paths and outcomes that matter most.</p></article>
@@ -569,12 +633,12 @@ API_KEY_API_KEY=local-mock-key npx tsx src/cli.ts run \
         <article><h3>Where does AI help?</h3><p>Explore optional scenario drafting within the team's data policies.</p></article>
       </div>
       <p class="notes"><strong>Ask:</strong> Which API and workflow should we evaluate first, and what would a useful pilot demonstrate?</p>
-      <span class="slide-no">14 / 15</span>
+      <span class="slide-no">18</span>
     </section>
 
-    <section class="slide" aria-labelledby="slide-title-15" data-notes="This is the project navigation slide. Each link opens a local Markdown guide in a new tab. Use End to return here from anywhere in the deck. Start with the README for usage, then use the contract and walkthroughs for deeper technical questions.">
-      <div class="kicker">14 · Explore the project</div>
-      <h2 id="slide-title-15">One deck. <span class="accent">The full project map.</span></h2>
+    <section class="slide" aria-labelledby="slide-title-19" data-notes="This is the project navigation slide. Each link opens a local Markdown guide in a new tab. Use End to return here from anywhere in the deck. Start with the README for usage, then use the contract and walkthroughs for deeper technical questions.">
+      <div class="kicker">18 · Explore the project</div>
+      <h2 id="slide-title-19">One deck. <span class="accent">The full project map.</span></h2>
       <p>Open the supporting guide that matches the question; these files live beside this presentation in the project.</p>
       <div class="resource-grid">
         <a class="resource-link" href="../README.md" target="_blank" rel="noopener"><strong>README.md</strong><span>Product overview and CLI usage</span></a>
@@ -590,7 +654,7 @@ API_KEY_API_KEY=local-mock-key npx tsx src/cli.ts run \
         <a class="resource-link" href="./COLLEAGUE-HANDOFF.md" target="_blank" rel="noopener"><strong>Colleague handoff</strong><span>Clean setup and acceptance checklist</span></a>
       </div>
       <p class="notes"><strong>Navigate:</strong> use <code>End</code> to return to this project map; use the links to open the full Markdown guides.</p>
-      <span class="slide-no">15 / 15</span>
+      <span class="slide-no">19</span>
     </section>
   </main>
 
@@ -631,6 +695,8 @@ API_KEY_API_KEY=local-mock-key npx tsx src/cli.ts run \
           const active = slideIndex === current;
           slide.classList.toggle("active", active);
           slide.setAttribute("aria-hidden", String(!active));
+          const slideNumber = slide.querySelector(".slide-no");
+          if (slideNumber) slideNumber.textContent = `${slideIndex + 1} / ${slides.length}`;
         });
         counter.textContent = `${current + 1} / ${slides.length}`;
         progress.style.width = `${((current + 1) / slides.length) * 100}%`;
